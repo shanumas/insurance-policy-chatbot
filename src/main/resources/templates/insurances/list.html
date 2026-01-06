@@ -1,29 +1,29 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments/header :: head('All Insurances')"></head>
+<html lang="sv" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/header :: head('Alla Försäkringar')"></head>
 <body>
 <div th:replace="fragments/header :: navbar('insurances')"></div>
 
-<div class="container">
+<div class="container main-content">
     <div class="card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-            <h2>All Insurances</h2>
-            <a href="/admin/insurances/new" class="btn">➕ Create New Insurance</a>
+            <h2>Alla <span class="highlight">Försäkringar</span></h2>
+            <a href="/admin/insurances/new" class="btn">Skapa ny</a>
         </div>
 
         <div th:if="${insurances.isEmpty()}" class="empty-state">
-            <p>No insurances found. Create your first insurance to get started!</p>
-            <a href="/admin/insurances/new" class="btn" style="margin-top: 1rem;">Create Insurance</a>
+            <p>Inga försäkringar hittades. Skapa din första försäkring för att komma igång!</p>
+            <a href="/admin/insurances/new" class="btn" style="margin-top: 1rem;">Skapa försäkring</a>
         </div>
 
         <table th:if="${!insurances.isEmpty()}">
             <thead>
                 <tr>
                     <th>ID</th>
-                    <th>Personal Number</th>
-                    <th>Policies</th>
-                    <th>Current Address</th>
-                    <th>Actions</th>
+                    <th>Personnummer</th>
+                    <th>Policyer</th>
+                    <th>Nuvarande Adress</th>
+                    <th>Åtgärder</th>
                 </tr>
             </thead>
             <tbody>
@@ -41,12 +41,17 @@
                     <td>
                         <a th:href="@{/admin/insurances/{id}(id=${insurance.id})}"
                            class="btn btn-secondary"
-                           style="padding: 0.5rem 1rem; font-size: 0.875rem;">View Details</a>
+                           style="padding: 0.5rem 1rem; font-size: 0.875rem;">Visa detaljer</a>
                     </td>
                 </tr>
             </tbody>
         </table>
     </div>
+</div>
+
+<!-- Floating Chat Button -->
+<div class="chat-button" onclick="alert('Chatbot kommer snart!')">
+    Kontakta oss
 </div>
 
 </body>

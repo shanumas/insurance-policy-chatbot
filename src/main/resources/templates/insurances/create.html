@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments/header :: head('Create Insurance')"></head>
+<html lang="sv" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/header :: head('Skapa Försäkring')"></head>
 <body>
 <div th:replace="fragments/header :: navbar('create')"></div>
 
-<div class="container">
+<div class="container main-content">
     <div class="card">
         <h2>Create New Insurance</h2>
         <p style="color: #666; margin-bottom: 2rem;">
@@ -79,6 +79,11 @@
             </li>
         </ul>
     </div>
+</div>
+
+<!-- Floating Chat Button -->
+<div class="chat-button" onclick="alert('Chatbot kommer snart!')">
+    Kontakta oss
 </div>
 
 </body>
