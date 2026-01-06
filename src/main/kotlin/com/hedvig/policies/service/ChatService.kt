@@ -32,6 +32,31 @@ class ChatService(
         private const val MAX_CONTEXT_LENGTH = 8000  // Increased for complete topic coverage
     }
 
+    private fun buildContextualizedQuery(
+        currentMessage: String,
+        conversationHistory: List<ChatMessage>
+    ): String {
+        // If no history or history is short, just use current message
+        if (conversationHistory.size < 2) {
+            return currentMessage
+        }
+
+        // Get last 3 exchanges (6 messages) for context
+        val recentHistory = conversationHistory.takeLast(6)
+
+        // Build a contextualized query by combining recent context with current message
+        val historyContext = recentHistory.joinToString(" ") {
+            if (it.role == "user") it.content else ""
+        }.trim()
+
+        // If current message is short/vague, prepend with history context
+        return if (currentMessage.length < 50 && historyContext.isNotEmpty()) {
+            "$historyContext. $currentMessage"
+        } else {
+            currentMessage
+        }
+    }
+
     fun chat(request: ChatRequest): ChatResponse {
         val conversationId = request.conversationId ?: UUID.randomUUID().toString()
 
@@ -114,10 +139,14 @@ class ChatService(
             }
         }
 
+        // Build contextualized query using conversation history
+        val searchQuery = buildContextualizedQuery(request.message, conversationHistory)
+        logger.debug("Search query (with context): $searchQuery")
+
         // Search for relevant policy chunks using hybrid search (AI topic mapping + filtering + ranking)
         val userPlan = userInsurance?.policyType?.name  // Get user's plan (Bas/Standard/Max)
         val searchResults = vectorSearchService.searchHybrid(
-            query = request.message,
+            query = searchQuery,
             userPlan = userPlan,
             topK = TOP_K,
             minSimilarity = MIN_SIMILARITY
