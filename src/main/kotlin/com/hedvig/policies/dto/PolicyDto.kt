@@ -1,10 +1,13 @@
 package com.hedvig.policies.dto
 
 import com.hedvig.policies.domain.Policy
+import com.hedvig.policies.domain.PolicyType
 import java.time.LocalDate
 
 data class CreateInsuranceRequest(
     val personalNumber: String,
+    val customerName: String,
+    val policyType: PolicyType,
     val address: String,
     val postalCode: String,
     val startDate: LocalDate
@@ -44,5 +47,7 @@ data class PolicyResponse(
 data class InsuranceResponse(
     val id: Long,
     val personalNumber: String,
+    val customerName: String,
+    val policyType: PolicyType,
     val policies: List<PolicyResponse>
 )

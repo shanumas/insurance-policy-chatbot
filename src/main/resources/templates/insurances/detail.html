@@ -18,8 +18,20 @@
                 <p style="font-size: 1.25rem; font-weight: 500;" th:text="${insurance.id}">1</p>
             </div>
             <div>
+                <label style="color: #666; font-size: 0.875rem;">Customer Name</label>
+                <p style="font-size: 1.25rem; font-weight: 500;" th:text="${insurance.customerName}">Anna Andersson</p>
+            </div>
+            <div>
                 <label style="color: #666; font-size: 0.875rem;">Personal Number</label>
                 <p style="font-size: 1.25rem; font-weight: 500;" th:text="${insurance.personalNumber}">199001011234</p>
+            </div>
+            <div>
+                <label style="color: #666; font-size: 0.875rem;">Policy Type</label>
+                <p style="font-size: 1.25rem; font-weight: 500;">
+                    <span class="badge"
+                          th:classappend="${insurance.policyType == T(com.hedvig.policies.domain.PolicyType).BAS} ? 'badge-info' : (${insurance.policyType == T(com.hedvig.policies.domain.PolicyType).STANDARD} ? 'badge-success' : 'badge-warning')"
+                          th:text="${insurance.policyType}">STANDARD</span>
+                </p>
             </div>
         </div>
 

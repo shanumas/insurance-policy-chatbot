@@ -36,6 +36,8 @@ class WebController(private val policyService: PolicyService) {
     @PostMapping("/admin/insurances")
     fun createInsurance(
         @RequestParam personalNumber: String,
+        @RequestParam customerName: String,
+        @RequestParam policyType: String,
         @RequestParam address: String,
         @RequestParam postalCode: String,
         @RequestParam startDate: String,
@@ -45,6 +47,8 @@ class WebController(private val policyService: PolicyService) {
         return try {
             val request = CreateInsuranceRequest(
                 personalNumber = personalNumber,
+                customerName = customerName,
+                policyType = com.hedvig.policies.domain.PolicyType.valueOf(policyType),
                 address = address,
                 postalCode = postalCode,
                 startDate = LocalDate.parse(startDate)

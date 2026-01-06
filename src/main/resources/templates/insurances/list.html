@@ -20,7 +20,9 @@
             <thead>
                 <tr>
                     <th>ID</th>
+                    <th>Kundnamn</th>
                     <th>Personnummer</th>
+                    <th>Försäkringstyp</th>
                     <th>Policyer</th>
                     <th>Nuvarande Adress</th>
                     <th>Åtgärder</th>
@@ -29,7 +31,13 @@
             <tbody>
                 <tr th:each="insurance : ${insurances}">
                     <td th:text="${insurance.id}">1</td>
+                    <td th:text="${insurance.customerName}">Anna Andersson</td>
                     <td th:text="${insurance.personalNumber}">199001011234</td>
+                    <td>
+                        <span class="badge"
+                              th:classappend="${insurance.policyType == T(com.hedvig.policies.domain.PolicyType).BAS} ? 'badge-info' : (${insurance.policyType == T(com.hedvig.policies.domain.PolicyType).STANDARD} ? 'badge-success' : 'badge-warning')"
+                              th:text="${insurance.policyType}">STANDARD</span>
+                    </td>
                     <td>
                         <span class="badge badge-info" th:text="${insurance.policies.size()} + ' version(s)'">1 version(s)</span>
                     </td>

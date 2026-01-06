@@ -24,7 +24,11 @@ class PolicyService(
             throw IllegalArgumentException("Insurance already exists for personnummer: ${request.personalNumber}")
         }
 
-        val insurance = Insurance(personalNumber = request.personalNumber)
+        val insurance = Insurance(
+            personalNumber = request.personalNumber,
+            customerName = request.customerName,
+            policyType = request.policyType
+        )
         val savedInsurance = insuranceRepository.save(insurance)
 
         val insuranceId = savedInsurance.id ?: throw IllegalStateException("Insurance ID cannot be null after save")
@@ -82,6 +86,8 @@ class PolicyService(
         return InsuranceResponse(
             id = insuranceId,
             personalNumber = insurance.personalNumber,
+            customerName = insurance.customerName,
+            policyType = insurance.policyType,
             policies = policies
         )
     }
@@ -109,6 +115,8 @@ class PolicyService(
             InsuranceResponse(
                 id = insuranceId,
                 personalNumber = insurance.personalNumber,
+                customerName = insurance.customerName,
+                policyType = insurance.policyType,
                 policies = policyRepository.findByInsuranceIdOrderByVersionDesc(insuranceId)
                     .map { PolicyResponse.from(it) }
             )

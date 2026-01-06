@@ -17,6 +17,20 @@
 
         <form action="/admin/insurances" method="post">
             <div class="form-group">
+                <label for="customerName">Customer Name *</label>
+                <input type="text"
+                       id="customerName"
+                       name="customerName"
+                       placeholder="e.g., Anna Andersson"
+                       required
+                       minlength="2"
+                       maxlength="255">
+                <small style="color: #666; display: block; margin-top: 0.25rem;">
+                    Full name of the customer
+                </small>
+            </div>
+
+            <div class="form-group">
                 <label for="personalNumber">Personal Number *</label>
                 <input type="text"
                        id="personalNumber"
@@ -27,6 +41,19 @@
                        title="Personal number must be 12 digits">
                 <small style="color: #666; display: block; margin-top: 0.25rem;">
                     Swedish personal number (12 digits)
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="policyType">Policy Type *</label>
+                <select id="policyType" name="policyType" required>
+                    <option value="">-- Select Policy Type --</option>
+                    <option value="BAS">Bas - Basic coverage</option>
+                    <option value="STANDARD">Standard - Standard coverage</option>
+                    <option value="MAX">Max - Maximum coverage</option>
+                </select>
+                <small style="color: #666; display: block; margin-top: 0.25rem;">
+                    Choose the level of insurance coverage
                 </small>
             </div>
 
