@@ -104,6 +104,111 @@ class OpenAIService(
         }
     }
 
+    /**
+     * Uses OpenAI to intelligently chunk insurance document text with metadata
+     * Uses JSON mode for structured output
+     */
+    fun generateStructuredChunks(fullText: String, documentName: String): String {
+        if (apiKey.isBlank()) {
+            throw IllegalStateException("OpenAI API key not configured")
+        }
+
+        try {
+            val systemPrompt = """
+                Du är en expert på att analysera svenska försäkringsdokument.
+                Din uppgift är att dela upp texten i meningsfulla chunks med metadata.
+
+                VIKTIGA REGLER:
+                1. Dela upp tabeller/jämförelser i SEPARATA chunks (en per försäkringstyp: Bas, Standard, Max)
+                2. Varje chunk = EN komplett semantisk enhet (inte avbruten mitt i en regel)
+                3. Optimal chunk-storlek: 300-700 tokens
+                4. Markera begränsningar/undantag med "isNegativeContext": true
+                5. Om en sektion gäller alla planer, använd "plan": "All"
+                6. Om en sektion är specifik för en plan (Bas/Standard/Max), använd den planen
+
+                EXEMPEL PÅ CHUNKING:
+
+                Om texten innehåller en tabell:
+                ```
+                Vattenläcka:
+                Bas: 50 000 kr, självrisk 5 000 kr
+                Standard: 100 000 kr, självrisk 2 500 kr
+                Max: 200 000 kr, självrisk 1 000 kr
+                ```
+
+                Ska delas till 3 chunks:
+                1. {"content": "Vattenläcka - Bas: Maximal ersättning 50 000 kr, självrisk 5 000 kr", "plan": "Bas", "moment": "Vattenläcka", "documentSection": "Vad ersätts"}
+                2. {"content": "Vattenläcka - Standard: Maximal ersättning 100 000 kr, självrisk 2 500 kr", "plan": "Standard", "moment": "Vattenläcka", "documentSection": "Vad ersätts"}
+                3. {"content": "Vattenläcka - Max: Maximal ersättning 200 000 kr, självrisk 1 000 kr", "plan": "Max", "moment": "Vattenläcka", "documentSection": "Vad ersätts"}
+
+                Metadata-fält:
+                - plan: "Bas" | "Standard" | "Max" | "All" (använd "All" om det gäller alla planer)
+                - moment: "Stöld" | "Brand" | "Vattenläcka" | "Reseskydd" | "Ansvar" | etc (skadetyp)
+                - locationScope: "I bostaden" | "Utanför bostaden" | "På resa" | "Förvarad i bil" | null
+                - documentSection: "Vad ersätts" | "Begränsningar" | "Undantag" | "Säkerhetsföreskrifter" | "Hur man anmäler skada" | etc
+                - appliesTo: "Egendom" | "Person" | "Bostad" | null
+                - isNegativeContext: true (för undantag/begränsningar), false (för täckning)
+
+                Svara ENDAST med giltig JSON i detta format:
+                {
+                  "chunks": [
+                    {
+                      "content": "full chunk text",
+                      "plan": "Bas",
+                      "moment": "Stöld",
+                      "locationScope": "I bostaden",
+                      "documentSection": "Vad ersätts",
+                      "appliesTo": "Egendom",
+                      "isNegativeContext": false
+                    }
+                  ]
+                }
+            """.trimIndent()
+
+            val userMessage = "Analysera och dela upp följande försäkringstext:\n\n$fullText"
+
+            val request = mapOf(
+                "model" to "gpt-4o-2024-08-06",  // Supports structured outputs
+                "messages" to listOf(
+                    mapOf("role" to "system", "content" to systemPrompt),
+                    mapOf("role" to "user", "content" to userMessage)
+                ),
+                "response_format" to mapOf("type" to "json_object"),
+                "temperature" to 0.3  // Lower for more deterministic chunking
+            )
+
+            logger.info("Sending structured chunking request to OpenAI (document: $documentName)")
+
+            val response = webClient.post()
+                .uri("/chat/completions")
+                .bodyValue(request)
+                .retrieve()
+                .onStatus({ status -> status.isError }) { clientResponse ->
+                    clientResponse.bodyToMono(String::class.java).map { body ->
+                        logger.error("OpenAI API error: Status=${clientResponse.statusCode()}, Body=$body")
+                        RuntimeException("OpenAI API error: ${clientResponse.statusCode()} - $body")
+                    }
+                }
+                .bodyToMono(Map::class.java)
+                .block()
+
+            @Suppress("UNCHECKED_CAST")
+            val choices = response?.get("choices") as? List<Map<String, Any>>
+            val messageContent = (choices?.get(0)?.get("message") as? Map<String, Any>)?.get("content") as? String
+
+            if (messageContent.isNullOrBlank()) {
+                throw RuntimeException("Empty response from OpenAI structured chunking")
+            }
+
+            logger.info("Successfully received structured chunks from OpenAI")
+            return messageContent
+
+        } catch (e: Exception) {
+            logger.error("Error in structured chunking: ${e.message}", e)
+            throw RuntimeException("Failed to generate structured chunks: ${e.message}", e)
+        }
+    }
+
     companion object {
         // Utility methods for converting embeddings to/from ByteArray for database storage
 

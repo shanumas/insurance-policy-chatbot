@@ -1,8 +1,17 @@
 package com.hedvig.policies.service
 
+import com.hedvig.policies.dto.ChunkMetadata
 import com.hedvig.policies.dto.PolicyChunkDto
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+
+/**
+ * Filters for two-stage retrieval based on topics
+ */
+data class MetadataFilter(
+    val plan: String? = null,              // Filter by plan (Bas, Standard, Max, or All)
+    val topic: String? = null              // Filter by specific topic name (or partial match)
+)
 
 @Service
 class VectorSearchService(
@@ -126,5 +135,84 @@ class VectorSearchService(
         }
 
         return results.sortedByDescending { it.similarity }.take(topK)
+    }
+
+    /**
+     * TWO-STAGE RETRIEVAL: Filter by metadata first, then rank by semantic similarity
+     * This is critical for insurance documents to avoid hallucination
+     */
+    fun searchWithMetadataFilter(
+        query: String,
+        filter: MetadataFilter,
+        topK: Int = 5,
+        minSimilarity: Double = 0.6
+    ): List<SearchResult> {
+        logger.info("Two-stage search: query='$query', filter=$filter")
+
+        // STAGE 1: Filter by metadata (cheap, deterministic)
+        val allChunks = loadChunks()
+        val filteredChunks = allChunks.filter { chunk ->
+            matchesFilter(chunk, filter)
+        }
+
+        logger.info("Stage 1 (metadata filter): ${filteredChunks.size}/${allChunks.size} chunks match")
+
+        if (filteredChunks.isEmpty()) {
+            logger.warn("No chunks match metadata filter")
+            return emptyList()
+        }
+
+        // STAGE 2: Rank by semantic similarity
+        val queryEmbedding = try {
+            openAIService.generateEmbedding(query)
+        } catch (e: Exception) {
+            logger.error("Failed to generate query embedding: ${e.message}", e)
+            return emptyList()
+        }
+
+        if (queryEmbedding.isEmpty()) {
+            return emptyList()
+        }
+
+        val results = filteredChunks.mapNotNull { chunk ->
+            try {
+                val similarity = OpenAIService.cosineSimilarity(queryEmbedding, chunk.embedding)
+                if (similarity >= minSimilarity) {
+                    SearchResult(chunk, similarity)
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
+                logger.error("Error calculating similarity: ${e.message}")
+                null
+            }
+        }
+
+        val topResults = results.sortedByDescending { it.similarity }.take(topK)
+        logger.info("Stage 2 (semantic ranking): ${topResults.size} chunks with similarity >= $minSimilarity")
+
+        return topResults
+    }
+
+    /**
+     * Check if a chunk matches the metadata filter
+     */
+    private fun matchesFilter(chunk: PolicyChunkDto, filter: MetadataFilter): Boolean {
+        val metadata = chunk.metadata
+
+        // Plan filter: match exact plan OR "All" chunks
+        if (filter.plan != null) {
+            val planMatches = metadata.plan == filter.plan || metadata.plan == "All"
+            if (!planMatches) return false
+        }
+
+        // Topic filter: partial match on topic name (case-insensitive)
+        if (filter.topic != null) {
+            if (!metadata.topic.contains(filter.topic, ignoreCase = true)) {
+                return false
+            }
+        }
+
+        return true
     }
 }

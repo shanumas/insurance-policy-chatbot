@@ -51,10 +51,11 @@ class DataInitializer(
                 return
             }
 
-            logger.info("Parsing PDF file: ${resource.filename}")
-            val textChunks = pdfParsingService.parseAndChunkPdf(resource.file, documentName)
+            logger.info("Parsing PDF file by topics from table of contents: ${resource.filename}")
 
-            logger.info("Parsed ${textChunks.size} chunks from PDF")
+            val textChunks = pdfParsingService.parseByTopics(resource.file, documentName)
+
+            logger.info("Created ${textChunks.size} topic-based chunks from PDF")
 
             // Generate embeddings for chunks
             logger.info("Generating embeddings for ${textChunks.size} chunks... This may take a few minutes and will incur API costs.")
@@ -74,7 +75,8 @@ class DataInitializer(
                                 documentName = chunk.documentName,
                                 chunkIndex = chunk.chunkIndex,
                                 content = chunk.content,
-                                embedding = embedding
+                                embedding = embedding,
+                                metadata = chunk.metadata
                             )
                         )
                     } else {
