@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-<head th:fragment="head (title)">
+<html lang="sv">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title th:text="${title} + ' - Hedvig'">Hedvig</title>
+    <title>Hem - Hedvig</title>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -326,18 +326,46 @@
         }
     </style>
 </head>
-
-<header th:fragment="navbar (active)">
+<body>
+<header>
     <div class="container">
         <div class="header-content">
             <a href="/" class="logo">Hedvig</a>
             <nav>
-                <a href="/" th:classappend="${active == 'home'} ? 'active'">Hem</a>
-                <a href="/admin/insurances" th:classappend="${active == 'insurances'} ? 'active'">Försäkringar</a>
-                <a href="/admin/insurances/new" th:classappend="${active == 'create'} ? 'active'">Skapa ny</a>
+                <a href="/" class="active">Hem</a>
+                <a href="/admin/insurances">Försäkringar</a>
+                <a href="/admin/insurances/new">Skapa ny</a>
             </nav>
         </div>
     </div>
 </header>
 
+<div class="container main-content">
+    <div class="card">
+        <h1>Välkommen till <span class="highlight">Hedvig</span> Policy Manager</h1>
+        <p style="font-size: 1.125rem; margin-bottom: 3rem;">
+            Hantera försäkringar för bostadsrätt enkelt och smidigt.
+        </p>
+
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h3>📋 Visa försäkringar</h3>
+                <p>
+                    Bläddra bland alla försäkringsavtal och deras olika versioner.
+                </p>
+                <a href="/admin/insurances" class="btn">Visa alla</a>
+            </div>
+
+            <div class="feature-card">
+                <h3>➕ Skapa ny försäkring</h3>
+                <p>
+                    Starta ett nytt försäkringsavtal för en kund.
+                </p>
+                <a href="/admin/insurances/new" class="btn">Skapa försäkring</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
 </html>

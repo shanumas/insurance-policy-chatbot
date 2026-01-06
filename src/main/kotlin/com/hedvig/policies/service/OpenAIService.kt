@@ -76,10 +76,18 @@ class OpenAIService(
                 max_tokens = maxTokens
             )
 
+            logger.debug("Sending chat request to OpenAI with model: $model")
+
             val response = webClient.post()
                 .uri("/chat/completions")
                 .bodyValue(request)
                 .retrieve()
+                .onStatus({ status -> status.isError }) { clientResponse ->
+                    clientResponse.bodyToMono(String::class.java).map { body ->
+                        logger.error("OpenAI API error response: Status=${clientResponse.statusCode()}, Body=$body")
+                        RuntimeException("OpenAI API error: ${clientResponse.statusCode()} - $body")
+                    }
+                }
                 .bodyToMono(OpenAIChatResponse::class.java)
                 .block()
 
@@ -88,10 +96,11 @@ class OpenAIService(
                 throw RuntimeException("Empty response from OpenAI")
             }
 
+            logger.debug("Successfully received response from OpenAI")
             return response.choices[0].message.content
         } catch (e: Exception) {
             logger.error("Error in chat completion: ${e.message}", e)
-            throw RuntimeException("Failed to get chat completion", e)
+            throw RuntimeException("Failed to get chat completion: ${e.message}", e)
         }
     }
 
