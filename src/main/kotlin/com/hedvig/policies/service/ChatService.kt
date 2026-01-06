@@ -181,6 +181,8 @@ class ChatService(
         if (userInsurance != null) {
             contextBuilder.append("KUNDINFORMATION:\n")
             contextBuilder.append("Personnummer: ${userInsurance.personalNumber}\n")
+            contextBuilder.append("Kundnamn: ${userInsurance.customerName}\n")
+            contextBuilder.append("Försäkringstyp: ${userInsurance.policyType} (VIKTIGT: Svara baserat på denna försäkringsnivå)\n")
             contextBuilder.append("Antal försäkringsversioner: ${userInsurance.policies.size}\n")
 
             // Sort policies by start date to get chronological order
@@ -267,7 +269,10 @@ class ChatService(
                 - Svara alltid på svenska
                 - Var vänlig, professionell och hjälpsam
                 - Basera dina svar på den kontext som tillhandahålls
-                - Om kunden har angett sitt personnummer och du har tillgång till deras försäkringsinformation, använd denna för att ge personliga svar
+                - VIKTIGT: Vi erbjuder tre försäkringsnivåer (BAS, STANDARD, MAX) med olika täckning
+                - Om kunden har angett sitt personnummer och du har tillgång till deras försäkringstyp, ANVÄND DENNA information för att ge specifika svar
+                - När du svarar om täckning eller ersättning, var tydlig med vilken försäkringsnivå svaret gäller för
+                - Om villkoren skiljer sig mellan BAS, STANDARD och MAX, förklara skillnaderna
                 - När du känner till kundens adress eller försäkringsdetaljer, referera till dem naturligt i ditt svar
                 - Om informationen inte finns i kontexten, säg det ärligt
                 - Ge kortfattade och tydliga svar
