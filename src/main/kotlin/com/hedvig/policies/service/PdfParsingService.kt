@@ -10,6 +10,13 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.io.File
 
+data class TextChunk(
+    val documentName: String,
+    val chunkIndex: Int,
+    val content: String,
+    val pageNumber: Int
+)
+
 @Service
 @Transactional
 class PdfParsingService(
@@ -55,6 +62,80 @@ class PdfParsingService(
             logger.info("Created ${chunks.size} chunks from PDF")
         } finally {
             document.close()
+        }
+
+        return chunks
+    }
+
+    fun parseAndChunkPdf(file: File, documentName: String): List<TextChunk> {
+        logger.info("Loading PDF file: ${file.absolutePath}")
+
+        val document = Loader.loadPDF(file)
+        val chunks = mutableListOf<TextChunk>()
+
+        try {
+            val stripper = PDFTextStripper()
+            val totalPages = document.numberOfPages
+            logger.info("PDF has $totalPages pages")
+
+            // Extract text page by page
+            for (pageNum in 1..totalPages) {
+                stripper.startPage = pageNum
+                stripper.endPage = pageNum
+                val pageText = stripper.getText(document)
+
+                // Chunk the page text
+                val pageChunks = chunkTextSimple(pageText, documentName, pageNum, chunks.size)
+                chunks.addAll(pageChunks)
+            }
+
+            logger.info("Created ${chunks.size} chunks from PDF")
+        } finally {
+            document.close()
+        }
+
+        return chunks
+    }
+
+    private fun chunkTextSimple(
+        text: String,
+        documentName: String,
+        pageNumber: Int,
+        startingIndex: Int
+    ): List<TextChunk> {
+        val chunks = mutableListOf<TextChunk>()
+        var currentIndex = startingIndex
+        var position = 0
+
+        while (position < text.length) {
+            val endPosition = minOf(position + chunkSize, text.length)
+            var chunkEnd = endPosition
+
+            // Try to find a good breaking point (end of sentence or paragraph)
+            if (endPosition < text.length) {
+                val lastPeriod = text.lastIndexOf('.', endPosition)
+                val lastNewline = text.lastIndexOf('\n', endPosition)
+                val breakPoint = maxOf(lastPeriod, lastNewline)
+
+                if (breakPoint > position) {
+                    chunkEnd = breakPoint + 1
+                }
+            }
+
+            val chunkText = text.substring(position, chunkEnd).trim()
+            if (chunkText.isNotEmpty()) {
+                chunks.add(
+                    TextChunk(
+                        documentName = documentName,
+                        chunkIndex = currentIndex,
+                        content = chunkText,
+                        pageNumber = pageNumber
+                    )
+                )
+                currentIndex++
+            }
+
+            position = chunkEnd
         }
 
         return chunks

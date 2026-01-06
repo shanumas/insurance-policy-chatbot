@@ -1,21 +1,39 @@
 package com.hedvig.policies.service
 
-import com.hedvig.policies.domain.PolicyTermsChunk
-import com.hedvig.policies.repository.PolicyTermsChunkRepository
+import com.hedvig.policies.dto.PolicyChunkDto
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 
 @Service
 class VectorSearchService(
-    private val policyTermsChunkRepository: PolicyTermsChunkRepository,
+    private val jsonStorageService: JsonStorageService,
     private val openAIService: OpenAIService
 ) {
     private val logger = LoggerFactory.getLogger(VectorSearchService::class.java)
 
+    // Cache the chunks in memory after first load
+    private var cachedChunks: List<PolicyChunkDto>? = null
+
     data class SearchResult(
-        val chunk: PolicyTermsChunk,
+        val chunk: PolicyChunkDto,
         val similarity: Double
     )
+
+    private fun loadChunks(): List<PolicyChunkDto> {
+        if (cachedChunks != null) {
+            return cachedChunks!!
+        }
+
+        val chunksStorage = jsonStorageService.loadChunks()
+        if (chunksStorage == null) {
+            logger.warn("No chunks found in JSON storage")
+            return emptyList()
+        }
+
+        cachedChunks = chunksStorage.chunks
+        logger.info("Loaded and cached ${cachedChunks!!.size} chunks from JSON")
+        return cachedChunks!!
+    }
 
     fun searchSimilarChunks(
         query: String,
@@ -38,22 +56,21 @@ class VectorSearchService(
             return emptyList()
         }
 
-        // Get all chunks with embeddings from database
-        val chunks = policyTermsChunkRepository.findByDocumentNameOrderByChunkIndex(documentName)
-            .filter { it.embedding != null }
+        // Get all chunks from JSON
+        val allChunks = loadChunks()
+        val chunks = allChunks.filter { it.documentName == documentName }
 
         if (chunks.isEmpty()) {
-            logger.warn("No chunks with embeddings found for document: $documentName")
+            logger.warn("No chunks found for document: $documentName")
             return emptyList()
         }
 
-        logger.debug("Found ${chunks.size} chunks with embeddings")
+        logger.debug("Found ${chunks.size} chunks for document")
 
         // Calculate similarity for each chunk
         val results = chunks.mapNotNull { chunk ->
             try {
-                val chunkEmbedding = OpenAIService.bytesToEmbedding(chunk.embedding!!)
-                val similarity = OpenAIService.cosineSimilarity(queryEmbedding, chunkEmbedding)
+                val similarity = OpenAIService.cosineSimilarity(queryEmbedding, chunk.embedding)
 
                 if (similarity >= minSimilarity) {
                     SearchResult(chunk, similarity)
@@ -61,7 +78,7 @@ class VectorSearchService(
                     null
                 }
             } catch (e: Exception) {
-                logger.error("Error calculating similarity for chunk ${chunk.id}: ${e.message}")
+                logger.error("Error calculating similarity for chunk ${chunk.chunkIndex}: ${e.message}")
                 null
             }
         }
@@ -71,7 +88,7 @@ class VectorSearchService(
 
         logger.info("Found ${topResults.size} similar chunks with similarity >= $minSimilarity")
         topResults.forEachIndexed { index, result ->
-            logger.debug("Result ${index + 1}: similarity=${String.format("%.3f", result.similarity)}, chunk_id=${result.chunk.id}")
+            logger.debug("Result ${index + 1}: similarity=${String.format("%.3f", result.similarity)}, chunk_index=${result.chunk.chunkIndex}")
         }
 
         return topResults
@@ -91,13 +108,16 @@ class VectorSearchService(
             return emptyList()
         }
 
-        val allChunks = policyTermsChunkRepository.findAll()
-            .filter { it.embedding != null }
+        val allChunks = loadChunks()
+
+        if (allChunks.isEmpty()) {
+            logger.warn("No chunks found in storage")
+            return emptyList()
+        }
 
         val results = allChunks.mapNotNull { chunk ->
             try {
-                val chunkEmbedding = OpenAIService.bytesToEmbedding(chunk.embedding!!)
-                val similarity = OpenAIService.cosineSimilarity(queryEmbedding, chunkEmbedding)
+                val similarity = OpenAIService.cosineSimilarity(queryEmbedding, chunk.embedding)
                 SearchResult(chunk, similarity)
             } catch (e: Exception) {
                 logger.error("Error calculating similarity: ${e.message}")
