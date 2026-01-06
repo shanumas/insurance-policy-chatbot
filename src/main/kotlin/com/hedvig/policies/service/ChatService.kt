@@ -27,9 +27,9 @@ class ChatService(
 
     companion object {
         private const val DOCUMENT_NAME = "home-insurance-terms"
-        private const val TOP_K = 5
+        private const val TOP_K = 3  // Reduced since hybrid search is more targeted
         private const val MIN_SIMILARITY = 0.6
-        private const val MAX_CONTEXT_LENGTH = 2000
+        private const val MAX_CONTEXT_LENGTH = 8000  // Increased for complete topic coverage
     }
 
     fun chat(request: ChatRequest): ChatResponse {
@@ -124,7 +124,7 @@ class ChatService(
         val context = buildContext(searchResults, userInsurance)
 
         // Build messages for the chat API
-        val messages = buildMessages(conversationHistory, request.message, context)
+        val messages = buildMessages(conversationHistory, request.message, context, userInsurance)
 
         // Get response from OpenAI
         val assistantMessage = try {
@@ -257,7 +257,8 @@ class ChatService(
     private fun buildMessages(
         conversationHistory: List<ChatMessage>,
         userMessage: String,
-        context: String
+        context: String,
+        userInsurance: com.hedvig.policies.dto.InsuranceResponse? = null
     ): List<ChatMessage> {
         val messages = mutableListOf<ChatMessage>()
 
@@ -267,29 +268,29 @@ class ChatService(
             content = """
                 Du är en AI-assistent för Hedvig hemförsäkringar.
 
-                KRITISKA REGLER (följ ALLTID):
-                1. Svara ENDAST baserat på tillhandahållen kontext - ingen extern kunskap
-                2. Om informationen inte finns i kontexten → säg "Jag hittar inte den informationen i villkoren"
-                3. Citera ALDRIG information från fel försäkringsnivå
-                4. Gissa ALDRIG eller fyll i luckor - om du är osäker, säg det
-                5. För juridiska frågor → hänvisa till kundservice
+                REGLER:
+                1. Svara baserat på den tillhandahållna kontexten från försäkringsvillkoren
+                2. Om kunden har en försäkring, svara för deras försäkringsnivå (${userInsurance?.policyType ?: "okänd"})
+                3. Om specifik information (t.ex. exakta belopp, procentsatser) INTE finns i kontexten → säg det ärligt
+                4. Om allmän information finns men detaljer saknas → ge den allmänna informationen + säg vilka detaljer som saknas
+                5. För komplexa juridiska tolkningar → hänvisa till kundservice
 
-                Försäkringsnivåer:
-                - Bas: Grundläggande skydd
-                - Standard: Utökat skydd (inkluderar Bas + extra)
-                - Max: Maximalt skydd (inkluderar Standard + extra)
-
-                När kunden har en försäkring:
-                - Svara ENDAST för deras nivå (Bas/Standard/Max) + "All"-sektioner
-                - IGNORERA information från andra nivåer helt
-                - Var tydlig: "För din Standard-försäkring gäller..."
+                Försäkringsnivåer (hierarkiska):
+                - Bas: Grundskydd (täcker det som står i kontexten för "Bas")
+                - Standard: Bas + extra funktioner
+                - Max: Standard + ytterligare extra funktioner
 
                 Svarsstil:
                 - Svara alltid på svenska
-                - Var koncis och klar (1-3 meningar om möjligt)
-                - Om frågan är komplex, dela upp svaret i punkter
-                - Om begränsningar/undantag finns → nämn dem explicit
-                - Ge ALDRIG optimistiska svar - försäkring är juridiskt bindande
+                - Var hjälpsam och informativ
+                - Om begränsningar eller undantag nämns i kontexten → ta med dem
+                - Om belopp/procent finns → citera dem
+                - Om endast allmän beskrivning finns → ge den informationen
+                - Var ärlig om vad som finns vs. inte finns i villkoren
+
+                Exempel på bra svar:
+                - "För eldsvåda ersätter försäkringen skador på dina saker och bostadsrätten. Specifika ersättningsbelopp hittar jag i ersättningstabellen [om den finns i kontext]."
+                - "Stöldskydd gäller både i och utanför bostaden, men det finns begränsningar för vissa föremål."
 
                 Tillgänglig kontext från försäkringsvillkoren:
                 $context
