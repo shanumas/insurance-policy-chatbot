@@ -1,5 +1,6 @@
 package com.hedvig.policies.service
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.hedvig.policies.dto.*
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -13,7 +14,8 @@ class OpenAIService(
     @Value("\${openai.api.key}") private val apiKey: String,
     @Value("\${openai.api.url}") private val apiUrl: String,
     @Value("\${openai.embedding.model}") private val embeddingModel: String,
-    private val webClientBuilder: WebClient.Builder
+    private val webClientBuilder: WebClient.Builder,
+    private val objectMapper: ObjectMapper
 ) {
     private val logger = LoggerFactory.getLogger(OpenAIService::class.java)
 
@@ -101,6 +103,86 @@ class OpenAIService(
         } catch (e: Exception) {
             logger.error("Error in chat completion: ${e.message}", e)
             throw RuntimeException("Failed to get chat completion: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Map a user query to relevant insurance topics
+     * Uses fast model for quick pre-filtering
+     */
+    fun mapQueryToTopics(query: String, availableTopics: List<String>): List<String> {
+        if (apiKey.isBlank()) {
+            logger.warn("OpenAI API key not configured. Returning all topics.")
+            return availableTopics
+        }
+
+        try {
+            val topicList = availableTopics.joinToString("\n") { "- $it" }
+
+            val systemPrompt = """
+                Du är en expert på svenska hemförsäkringar.
+                Din uppgift: analysera användarens fråga och identifiera vilka topics från innehållsförteckningen som är relevanta.
+
+                Regler:
+                - Returnera ENDAST topic-namn från listan (exakt som de är skrivna)
+                - Inkludera 2-5 mest relevanta topics
+                - Om frågan handlar om ersättning/täckning, inkludera både det specifika momentet OCH "Hur mycket kan du få i ersättning?"
+                - Om frågan är allmän, inkludera de bredare topics
+                - Svara i JSON-format: {"topics": ["topic1", "topic2"]}
+
+                Tillgängliga topics:
+                $topicList
+            """.trimIndent()
+
+            val userMessage = "Användarfråga: $query"
+
+            val request = mapOf(
+                "model" to "gpt-4o-mini",  // Fast and cheap
+                "messages" to listOf(
+                    mapOf("role" to "system", "content" to systemPrompt),
+                    mapOf("role" to "user", "content" to userMessage)
+                ),
+                "response_format" to mapOf("type" to "json_object"),
+                "temperature" to 0.3,
+                "max_tokens" to 200
+            )
+
+            logger.debug("Mapping query to topics: '$query'")
+
+            val response = webClient.post()
+                .uri("/chat/completions")
+                .bodyValue(request)
+                .retrieve()
+                .onStatus({ status -> status.isError }) { clientResponse ->
+                    clientResponse.bodyToMono(String::class.java).map { body ->
+                        logger.error("OpenAI API error: Status=${clientResponse.statusCode()}, Body=$body")
+                        RuntimeException("OpenAI API error: ${clientResponse.statusCode()}")
+                    }
+                }
+                .bodyToMono(Map::class.java)
+                .block()
+
+            @Suppress("UNCHECKED_CAST")
+            val choices = response?.get("choices") as? List<Map<String, Any>>
+            val messageContent = (choices?.get(0)?.get("message") as? Map<String, Any>)?.get("content") as? String
+
+            if (messageContent.isNullOrBlank()) {
+                logger.warn("Empty response from topic mapper, using all topics")
+                return availableTopics
+            }
+
+            // Parse JSON response
+            val jsonResponse = objectMapper.readValue(messageContent, Map::class.java)
+            @Suppress("UNCHECKED_CAST")
+            val topics = (jsonResponse["topics"] as? List<String>) ?: emptyList()
+
+            logger.info("Mapped query to ${topics.size} topics: $topics")
+            return topics
+
+        } catch (e: Exception) {
+            logger.error("Error mapping query to topics: ${e.message}", e)
+            logger.warn("Falling back to using all topics")
+            return availableTopics
         }
     }
 

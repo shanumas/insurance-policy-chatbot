@@ -44,6 +44,14 @@ class VectorSearchService(
         return cachedChunks!!
     }
 
+    /**
+     * Get all available topics from chunks
+     */
+    fun getAvailableTopics(): List<String> {
+        val chunks = loadChunks()
+        return chunks.map { it.metadata.topic }.distinct().sorted()
+    }
+
     fun searchSimilarChunks(
         query: String,
         documentName: String,
@@ -190,6 +198,90 @@ class VectorSearchService(
 
         val topResults = results.sortedByDescending { it.similarity }.take(topK)
         logger.info("Stage 2 (semantic ranking): ${topResults.size} chunks with similarity >= $minSimilarity")
+
+        return topResults
+    }
+
+    /**
+     * HYBRID SEARCH: AI-powered topic mapping + metadata filtering + semantic ranking
+     * This is the recommended approach for insurance queries
+     */
+    fun searchHybrid(
+        query: String,
+        userPlan: String? = null,  // User's plan (Bas/Standard/Max)
+        topK: Int = 5,
+        minSimilarity: Double = 0.6
+    ): List<SearchResult> {
+        logger.info("Hybrid search: query='$query', userPlan=$userPlan")
+
+        // Step 1: Use AI to map query to relevant topics
+        val availableTopics = getAvailableTopics()
+        val relevantTopics = openAIService.mapQueryToTopics(query, availableTopics)
+
+        logger.info("AI mapped query to ${relevantTopics.size} relevant topics: $relevantTopics")
+
+        if (relevantTopics.isEmpty()) {
+            logger.warn("No topics identified, falling back to regular search")
+            return searchAllDocuments(query, topK)
+        }
+
+        // Step 2: Filter chunks by plan and topics
+        val allChunks = loadChunks()
+        val filteredChunks = allChunks.filter { chunk ->
+            val metadata = chunk.metadata
+
+            // Plan filter: user's plan OR "All" chunks
+            val planMatches = if (userPlan != null) {
+                metadata.plan == userPlan || metadata.plan == "All"
+            } else {
+                true  // No plan filter
+            }
+
+            // Topic filter: must be in relevant topics list
+            val topicMatches = relevantTopics.contains(metadata.topic)
+
+            planMatches && topicMatches
+        }
+
+        logger.info("Filtered to ${filteredChunks.size}/${allChunks.size} chunks (plan=$userPlan, topics=${relevantTopics.size})")
+
+        if (filteredChunks.isEmpty()) {
+            logger.warn("No chunks after filtering, falling back to plan-only filter")
+            return if (userPlan != null) {
+                searchWithMetadataFilter(query, MetadataFilter(plan = userPlan), topK, minSimilarity)
+            } else {
+                searchAllDocuments(query, topK)
+            }
+        }
+
+        // Step 3: Rank filtered chunks by semantic similarity
+        val queryEmbedding = try {
+            openAIService.generateEmbedding(query)
+        } catch (e: Exception) {
+            logger.error("Failed to generate query embedding: ${e.message}", e)
+            return emptyList()
+        }
+
+        if (queryEmbedding.isEmpty()) {
+            return emptyList()
+        }
+
+        val results = filteredChunks.mapNotNull { chunk ->
+            try {
+                val similarity = OpenAIService.cosineSimilarity(queryEmbedding, chunk.embedding)
+                if (similarity >= minSimilarity) {
+                    SearchResult(chunk, similarity)
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
+                logger.error("Error calculating similarity: ${e.message}")
+                null
+            }
+        }
+
+        val topResults = results.sortedByDescending { it.similarity }.take(topK)
+        logger.info("Hybrid search returned ${topResults.size} results with similarity >= $minSimilarity")
 
         return topResults
     }

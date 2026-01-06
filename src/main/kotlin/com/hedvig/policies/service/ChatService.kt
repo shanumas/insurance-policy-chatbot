@@ -109,13 +109,16 @@ class ChatService(
             }
         }
 
-        // Search for relevant policy chunks
-        val searchResults = vectorSearchService.searchAllDocuments(
+        // Search for relevant policy chunks using hybrid search (AI topic mapping + filtering + ranking)
+        val userPlan = userInsurance?.policyType?.name  // Get user's plan (Bas/Standard/Max)
+        val searchResults = vectorSearchService.searchHybrid(
             query = request.message,
-            topK = TOP_K
-        ).filter { it.similarity >= MIN_SIMILARITY }
+            userPlan = userPlan,
+            topK = TOP_K,
+            minSimilarity = MIN_SIMILARITY
+        )
 
-        logger.info("Found ${searchResults.size} relevant chunks")
+        logger.info("Hybrid search found ${searchResults.size} relevant chunks for plan=$userPlan")
 
         // Build context from search results and user data
         val context = buildContext(searchResults, userInsurance)
@@ -262,23 +265,33 @@ class ChatService(
         messages.add(ChatMessage(
             role = "system",
             content = """
-                Du är en AI-assistent för Hedvig, ett svenskt försäkringsbolag.
-                Din uppgift är att hjälpa kunder att förstå deras hemförsäkringsvillkor och ge personlig service.
+                Du är en AI-assistent för Hedvig hemförsäkringar.
 
-                Riktlinjer:
+                KRITISKA REGLER (följ ALLTID):
+                1. Svara ENDAST baserat på tillhandahållen kontext - ingen extern kunskap
+                2. Om informationen inte finns i kontexten → säg "Jag hittar inte den informationen i villkoren"
+                3. Citera ALDRIG information från fel försäkringsnivå
+                4. Gissa ALDRIG eller fyll i luckor - om du är osäker, säg det
+                5. För juridiska frågor → hänvisa till kundservice
+
+                Försäkringsnivåer:
+                - Bas: Grundläggande skydd
+                - Standard: Utökat skydd (inkluderar Bas + extra)
+                - Max: Maximalt skydd (inkluderar Standard + extra)
+
+                När kunden har en försäkring:
+                - Svara ENDAST för deras nivå (Bas/Standard/Max) + "All"-sektioner
+                - IGNORERA information från andra nivåer helt
+                - Var tydlig: "För din Standard-försäkring gäller..."
+
+                Svarsstil:
                 - Svara alltid på svenska
-                - Var vänlig, professionell och hjälpsam
-                - Basera dina svar på den kontext som tillhandahålls
-                - VIKTIGT: Vi erbjuder tre försäkringsnivåer (BAS, STANDARD, MAX) med olika täckning
-                - Om kunden har angett sitt personnummer och du har tillgång till deras försäkringstyp, ANVÄND DENNA information för att ge specifika svar
-                - När du svarar om täckning eller ersättning, var tydlig med vilken försäkringsnivå svaret gäller för
-                - Om villkoren skiljer sig mellan BAS, STANDARD och MAX, förklara skillnaderna
-                - När du känner till kundens adress eller försäkringsdetaljer, referera till dem naturligt i ditt svar
-                - Om informationen inte finns i kontexten, säg det ärligt
-                - Ge kortfattade och tydliga svar
-                - Om du är osäker, rekommendera kunden att kontakta kundservice
+                - Var koncis och klar (1-3 meningar om möjligt)
+                - Om frågan är komplex, dela upp svaret i punkter
+                - Om begränsningar/undantag finns → nämn dem explicit
+                - Ge ALDRIG optimistiska svar - försäkring är juridiskt bindande
 
-                Tillgänglig kontext:
+                Tillgänglig kontext från försäkringsvillkoren:
                 $context
             """.trimIndent()
         ))
