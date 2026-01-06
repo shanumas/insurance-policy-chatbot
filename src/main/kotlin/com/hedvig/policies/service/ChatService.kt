@@ -32,6 +32,19 @@ class ChatService(
         private const val MAX_CONTEXT_LENGTH = 8000  // Increased for complete topic coverage
     }
 
+    private fun sanitizeMessage(message: String, personnummer: String?): String {
+        if (personnummer == null) return message
+
+        // Replace personnummer with placeholder to avoid OpenAI refusing to process it
+        var sanitized = message.replace(personnummer, "[PERSONNUMMER]")
+
+        // Also try to replace formatted version (YYYYMMDD-XXXX)
+        val formatted = formatPersonnummer(personnummer)
+        sanitized = sanitized.replace(formatted, "[PERSONNUMMER]")
+
+        return sanitized
+    }
+
     private fun buildContextualizedQuery(
         currentMessage: String,
         conversationHistory: List<ChatMessage>
@@ -68,6 +81,8 @@ class ChatService(
 
         // Try to extract personnummer from the message
         val personnummer = PersonnummerExtractor.extractPersonnummer(request.message)
+        val isNewPersonnummer = personnummer != null && conversationPersonnummer[conversationId] != personnummer
+
         if (personnummer != null) {
             conversationPersonnummer[conversationId] = personnummer
             logger.info("Detected and stored personnummer: $personnummer for conversation: $conversationId")
@@ -77,6 +92,10 @@ class ChatService(
 
         // Get stored personnummer for this conversation (if any)
         val storedPersonnummer = conversationPersonnummer[conversationId]
+
+        // Sanitize message by replacing personnummer with placeholder
+        val sanitizedMessage = sanitizeMessage(request.message, storedPersonnummer)
+        logger.debug("Sanitized message: $sanitizedMessage")
 
         // Fetch user insurance details if we have a personnummer
         var insuranceNotFound = false
@@ -94,11 +113,11 @@ class ChatService(
         }
 
         // If personnummer was just provided but no insurance found, inform the user
-        if (personnummer != null && insuranceNotFound) {
+        if (isNewPersonnummer && insuranceNotFound) {
             val notFoundMessage = """
                 Tack för att du delar ditt personnummer!
 
-                Jag kunde tyvärr inte hitta någon försäkring kopplad till personnummer ${formatPersonnummer(personnummer)}.
+                Jag kunde tyvärr inte hitta någon försäkring kopplad till personnummer ${formatPersonnummer(personnummer!!)}.
 
                 Detta kan bero på att:
                 - Du inte har en aktiv försäkring hos Hedvig än
@@ -111,7 +130,7 @@ class ChatService(
                 - Kontaktinformation till kundservice för att registrera din försäkring?
             """.trimIndent()
 
-            conversationHistory.add(ChatMessage(role = "user", content = request.message))
+            conversationHistory.add(ChatMessage(role = "user", content = sanitizedMessage))
             conversationHistory.add(ChatMessage(role = "assistant", content = notFoundMessage))
 
             return ChatResponse(
@@ -121,14 +140,36 @@ class ChatService(
             )
         }
 
+        // If personnummer was just provided and insurance WAS found, acknowledge it
+        if (isNewPersonnummer && userInsurance != null) {
+            val welcomeMessage = """
+                Tack för ditt personnummer! Jag har hittat din försäkring.
+
+                Kund: ${userInsurance.customerName}
+                Försäkringsnivå: ${userInsurance.policyType}
+                Adress: ${userInsurance.policies.firstOrNull { it.endDate == null }?.address ?: "Okänd"}
+
+                Hur kan jag hjälpa dig med din försäkring?
+            """.trimIndent()
+
+            conversationHistory.add(ChatMessage(role = "user", content = sanitizedMessage))
+            conversationHistory.add(ChatMessage(role = "assistant", content = welcomeMessage))
+
+            return ChatResponse(
+                message = welcomeMessage,
+                conversationId = conversationId,
+                sources = emptyList()
+            )
+        }
+
         // Check if the query needs clarification
-        if (shouldAskClarification(request.message, conversationHistory)) {
+        if (shouldAskClarification(sanitizedMessage, conversationHistory)) {
             logger.info("Query needs clarification, generating follow-up questions")
-            val clarificationResponse = generateClarificationQuestions(request.message, userInsurance)
+            val clarificationResponse = generateClarificationQuestions(sanitizedMessage, userInsurance)
 
             if (clarificationResponse != null) {
                 // Update conversation history with clarification
-                conversationHistory.add(ChatMessage(role = "user", content = request.message))
+                conversationHistory.add(ChatMessage(role = "user", content = sanitizedMessage))
                 conversationHistory.add(ChatMessage(role = "assistant", content = clarificationResponse))
 
                 return ChatResponse(
@@ -140,7 +181,7 @@ class ChatService(
         }
 
         // Build contextualized query using conversation history
-        val searchQuery = buildContextualizedQuery(request.message, conversationHistory)
+        val searchQuery = buildContextualizedQuery(sanitizedMessage, conversationHistory)
         logger.debug("Search query (with context): $searchQuery")
 
         // Search for relevant policy chunks using hybrid search (AI topic mapping + filtering + ranking)
@@ -158,7 +199,7 @@ class ChatService(
         val context = buildContext(searchResults, userInsurance)
 
         // Build messages for the chat API
-        val messages = buildMessages(conversationHistory, request.message, context, userInsurance)
+        val messages = buildMessages(conversationHistory, sanitizedMessage, context, userInsurance)
 
         // Get response from OpenAI
         val assistantMessage = try {
@@ -180,7 +221,7 @@ class ChatService(
         }
 
         // Update conversation history
-        conversationHistory.add(ChatMessage(role = "user", content = request.message))
+        conversationHistory.add(ChatMessage(role = "user", content = sanitizedMessage))
         conversationHistory.add(ChatMessage(role = "assistant", content = assistantMessage))
 
         // Limit conversation history to last 10 messages
