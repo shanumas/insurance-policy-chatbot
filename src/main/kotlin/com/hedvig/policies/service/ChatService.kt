@@ -61,6 +61,24 @@ class ChatService(
             }
         }
 
+        // Check if the query needs clarification
+        if (shouldAskClarification(request.message, conversationHistory)) {
+            logger.info("Query needs clarification, generating follow-up questions")
+            val clarificationResponse = generateClarificationQuestions(request.message, userInsurance)
+
+            if (clarificationResponse != null) {
+                // Update conversation history with clarification
+                conversationHistory.add(ChatMessage(role = "user", content = request.message))
+                conversationHistory.add(ChatMessage(role = "assistant", content = clarificationResponse))
+
+                return ChatResponse(
+                    message = clarificationResponse,
+                    conversationId = conversationId,
+                    sources = emptyList()
+                )
+            }
+        }
+
         // Search for relevant policy chunks
         val searchResults = vectorSearchService.searchAllDocuments(
             query = request.message,
@@ -212,6 +230,79 @@ class ChatService(
         messages.add(ChatMessage(role = "user", content = userMessage))
 
         return messages
+    }
+
+    private fun shouldAskClarification(message: String, conversationHistory: List<ChatMessage>): Boolean {
+        // Keywords that often indicate ambiguous questions about compensation/coverage
+        val ambiguousPatterns = listOf(
+            Regex("""ersättning.*bas""", RegexOption.IGNORE_CASE),
+            Regex("""skada.*täckt""", RegexOption.IGNORE_CASE),
+            Regex("""hur mycket.*få""", RegexOption.IGNORE_CASE),
+            Regex("""vad täcker""", RegexOption.IGNORE_CASE),
+            Regex("""täcker.*försäkring""", RegexOption.IGNORE_CASE)
+        )
+
+        // Check if message matches ambiguous patterns and lacks specific context
+        val isAmbiguous = ambiguousPatterns.any { it.containsMatchIn(message) }
+
+        // Check if the message lacks specific incident type
+        val hasSpecificIncident = listOf(
+            "brand", "stöld", "inbrott", "vatten", "läckage", "skadegörelse",
+            "explosion", "storm", "översvämning", "rån", "glasskada"
+        ).any { message.contains(it, ignoreCase = true) }
+
+        // Don't ask for clarification if user is clearly responding to a previous question
+        val isLikelyResponse = conversationHistory.isNotEmpty() &&
+            conversationHistory.last().role == "assistant" &&
+            conversationHistory.last().content.contains("?")
+
+        return isAmbiguous && !hasSpecificIncident && !isLikelyResponse
+    }
+
+    private fun generateClarificationQuestions(
+        message: String,
+        userInsurance: com.hedvig.policies.dto.InsuranceResponse?
+    ): String? {
+        try {
+            val prompt = """
+                Analysera följande kundfråga och avgör om den behöver förtydligande.
+
+                Kundfråga: "$message"
+                ${if (userInsurance != null) "Kunden har en försäkring på ${userInsurance.policies.firstOrNull()?.address}" else ""}
+
+                Om frågan är för vag eller allmän (t.ex. frågar om ersättning utan att specificera typ av skada),
+                generera 2-3 konkreta följdfrågor för att förtydliga. Fokusera på:
+                - Typ av skada (brand, vatten, stöld, etc.)
+                - Vilken typ av egendom som skadats
+                - Om det är akut eller något som redan hänt
+
+                Svara ENDAST med förtydligande frågor på svenska, eller svara "INGEN_CLARIFICATION" om frågan är tillräckligt specifik.
+
+                Exempel på bra förtydligande:
+                "Jag skulle gärna hjälpa dig med information om ersättning! För att ge dig rätt information behöver jag veta:
+
+                - Vilken typ av skada handlar det om? (t.ex. brand, vattenskada, stöld, inbrott)
+                - Vad är det som har skadats?
+                - Har skadan redan inträffat eller undrar du generellt?"
+            """.trimIndent()
+
+            val clarificationMessages = listOf(
+                ChatMessage(role = "system", content = "Du är en hjälpsam assistent som ställer förtydligande frågor."),
+                ChatMessage(role = "user", content = prompt)
+            )
+
+            val response = openAIService.chat(clarificationMessages, model = "gpt-4o-mini", maxTokens = 200)
+
+            return if (response.contains("INGEN_CLARIFICATION", ignoreCase = true)) {
+                null
+            } else {
+                response.trim()
+            }
+
+        } catch (e: Exception) {
+            logger.error("Error generating clarification questions: ${e.message}", e)
+            return null
+        }
     }
 
     fun clearConversation(conversationId: String) {
