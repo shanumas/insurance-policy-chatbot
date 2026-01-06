@@ -1,0 +1,46 @@
+### Create a new insurance with first policy
+POST http://localhost:8080/api/policies/insurances
+Content-Type: application/json
+
+{
+  "personalNumber": "199001011234",
+  "address": "Kungsgatan 16",
+  "postalCode": "11135",
+  "startDate": "2024-01-01"
+}
+
+### Create another insurance
+POST http://localhost:8080/api/policies/insurances
+Content-Type: application/json
+
+{
+  "personalNumber": "198505055678",
+  "address": "Storgatan 12",
+  "postalCode": "11422",
+  "startDate": "2023-06-01"
+}
+
+### Update policy (creates new version)
+PUT http://localhost:8080/api/policies/insurances/199001011234
+Content-Type: application/json
+
+{
+  "address": "Vasagatan 20",
+  "postalCode": "11120",
+  "startDate": "2024-07-01"
+}
+
+### Get insurance by personal number
+GET http://localhost:8080/api/policies/insurances/199001011234
+
+### Get all insurances
+GET http://localhost:8080/api/policies/insurances
+
+### Get policies by personal number and date (should return policy v1)
+GET http://localhost:8080/api/policies?personalNumber=199001011234&date=2024-03-15
+
+### Get policies by personal number and date (should return policy v2)
+GET http://localhost:8080/api/policies?personalNumber=199001011234&date=2024-08-01
+
+### Get policy by insurance ID and date
+GET http://localhost:8080/api/policies/by-insurance?insuranceId=1&date=2024-03-15
