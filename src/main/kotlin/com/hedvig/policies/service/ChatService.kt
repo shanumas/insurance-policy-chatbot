@@ -52,13 +52,43 @@ class ChatService(
         val storedPersonnummer = conversationPersonnummer[conversationId]
 
         // Fetch user insurance details if we have a personnummer
+        var insuranceNotFound = false
         val userInsurance = storedPersonnummer?.let {
             try {
                 policyService.getInsuranceByPersonalNumber(it)
             } catch (e: Exception) {
                 logger.warn("Could not fetch insurance for personnummer: ${e.message}")
+                insuranceNotFound = true
                 null
             }
+        }
+
+        // If personnummer was just provided but no insurance found, inform the user
+        if (personnummer != null && insuranceNotFound) {
+            val notFoundMessage = """
+                Tack för att du delar ditt personnummer!
+
+                Jag kunde tyvärr inte hitta någon försäkring kopplad till personnummer ${formatPersonnummer(personnummer)}.
+
+                Detta kan bero på att:
+                - Du inte har en aktiv försäkring hos Hedvig än
+                - Personnumret kan vara felstavat
+                - Det finns en teknisk fördröjning i systemet
+
+                Vill du att jag hjälper dig med:
+                - Allmän information om våra hemförsäkringar?
+                - Hur du tecknar en ny försäkring?
+                - Kontaktinformation till kundservice för att registrera din försäkring?
+            """.trimIndent()
+
+            conversationHistory.add(ChatMessage(role = "user", content = request.message))
+            conversationHistory.add(ChatMessage(role = "assistant", content = notFoundMessage))
+
+            return ChatResponse(
+                message = notFoundMessage,
+                conversationId = conversationId,
+                sources = emptyList()
+            )
         }
 
         // Check if the query needs clarification
@@ -151,20 +181,45 @@ class ChatService(
         if (userInsurance != null) {
             contextBuilder.append("KUNDINFORMATION:\n")
             contextBuilder.append("Personnummer: ${userInsurance.personalNumber}\n")
+            contextBuilder.append("Antal försäkringsversioner: ${userInsurance.policies.size}\n")
+
+            // Sort policies by start date to get chronological order
+            val sortedPolicies = userInsurance.policies.sortedBy { it.startDate }
+
+            // Get the first (oldest) policy
+            val firstPolicy = sortedPolicies.firstOrNull()
+            if (firstPolicy != null) {
+                contextBuilder.append("\nFÖRSTA FÖRSÄKRING (Version ${firstPolicy.version}):\n")
+                contextBuilder.append("- Startdatum: ${firstPolicy.startDate}\n")
+                contextBuilder.append("- Adress: ${firstPolicy.address}\n")
+                contextBuilder.append("- Postnummer: ${firstPolicy.postalCode}\n")
+                if (firstPolicy.endDate != null) {
+                    contextBuilder.append("- Slutdatum: ${firstPolicy.endDate}\n")
+                }
+            }
 
             // Get current active policy
             val currentPolicy = userInsurance.policies.firstOrNull { it.endDate == null }
-            if (currentPolicy != null) {
-                contextBuilder.append("Nuvarande försäkring:\n")
+            if (currentPolicy != null && currentPolicy != firstPolicy) {
+                contextBuilder.append("\nNUVARANDE AKTIV FÖRSÄKRING (Version ${currentPolicy.version}):\n")
+                contextBuilder.append("- Startdatum: ${currentPolicy.startDate}\n")
                 contextBuilder.append("- Adress: ${currentPolicy.address}\n")
                 contextBuilder.append("- Postnummer: ${currentPolicy.postalCode}\n")
-                contextBuilder.append("- Startdatum: ${currentPolicy.startDate}\n")
-                contextBuilder.append("- Version: ${currentPolicy.version}\n")
             }
 
-            // List all policy versions
+            // List all policy versions with details
             if (userInsurance.policies.size > 1) {
-                contextBuilder.append("\nTidigare versioner: ${userInsurance.policies.size - 1} st\n")
+                contextBuilder.append("\nALLA FÖRSÄKRINGSVERSIONER (kronologisk ordning):\n")
+                sortedPolicies.forEachIndexed { index, policy ->
+                    val status = if (policy.endDate == null) "AKTIV" else "Avslutad"
+                    contextBuilder.append("${index + 1}. Version ${policy.version} ($status)\n")
+                    contextBuilder.append("   Start: ${policy.startDate}")
+                    if (policy.endDate != null) {
+                        contextBuilder.append(" → Slut: ${policy.endDate}")
+                    }
+                    contextBuilder.append("\n")
+                    contextBuilder.append("   Adress: ${policy.address}, ${policy.postalCode}\n")
+                }
             }
 
             contextBuilder.append("\n")
@@ -302,6 +357,15 @@ class ChatService(
         } catch (e: Exception) {
             logger.error("Error generating clarification questions: ${e.message}", e)
             return null
+        }
+    }
+
+    private fun formatPersonnummer(personnummer: String): String {
+        // Format as YYYYMMDD-XXXX for readability
+        return if (personnummer.length == 12) {
+            "${personnummer.substring(0, 8)}-${personnummer.substring(8)}"
+        } else {
+            personnummer
         }
     }
 
