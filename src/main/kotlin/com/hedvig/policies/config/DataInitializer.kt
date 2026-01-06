@@ -45,9 +45,19 @@ class DataInitializer(
             val chunks = pdfParsingService.parsePdfFile(resource.file, documentName)
 
             logger.info("Saving ${chunks.size} chunks to database...")
-            pdfParsingService.saveChunks(chunks)
+            val savedChunks = pdfParsingService.saveChunks(chunks)
 
             logger.info("Successfully loaded policy terms document with ${chunks.size} chunks")
+
+            // Generate embeddings for chunks
+            try {
+                logger.info("Generating embeddings for chunks... This may take a few minutes.")
+                pdfParsingService.generateEmbeddingsForChunks(savedChunks)
+                logger.info("Successfully generated embeddings for all chunks")
+            } catch (e: Exception) {
+                logger.error("Failed to generate embeddings: ${e.message}", e)
+                logger.warn("Application will continue but RAG functionality may be limited")
+            }
 
         } catch (e: Exception) {
             logger.error("Error loading policy terms PDF: ${e.message}", e)

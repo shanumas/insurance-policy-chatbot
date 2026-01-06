@@ -13,7 +13,8 @@ import java.io.File
 @Service
 @Transactional
 class PdfParsingService(
-    private val policyTermsChunkRepository: PolicyTermsChunkRepository
+    private val policyTermsChunkRepository: PolicyTermsChunkRepository,
+    private val openAIService: OpenAIService
 ) {
     private val logger = LoggerFactory.getLogger(PdfParsingService::class.java)
     private val chunkSize = 1000 // characters per chunk
@@ -119,5 +120,33 @@ class PdfParsingService(
     fun deleteChunksByDocument(documentName: String) {
         logger.info("Deleting chunks for document: $documentName")
         policyTermsChunkRepository.deleteByDocumentName(documentName)
+    }
+
+    fun generateEmbeddingsForChunks(chunks: List<PolicyTermsChunk>): List<PolicyTermsChunk> {
+        logger.info("Generating embeddings for ${chunks.size} chunks...")
+
+        val chunksWithEmbeddings = chunks.mapIndexed { index, chunk ->
+            try {
+                logger.debug("Generating embedding for chunk ${index + 1}/${chunks.size}")
+
+                val embedding = openAIService.generateEmbedding(chunk.content)
+
+                if (embedding.isEmpty()) {
+                    logger.warn("Empty embedding generated for chunk ${chunk.id}, skipping")
+                    return@mapIndexed chunk
+                }
+
+                val embeddingBytes = OpenAIService.embeddingToBytes(embedding)
+
+                chunk.copy(embedding = embeddingBytes)
+            } catch (e: Exception) {
+                logger.error("Failed to generate embedding for chunk ${chunk.id}: ${e.message}")
+                chunk
+            }
+        }
+
+        logger.info("Successfully generated embeddings for ${chunksWithEmbeddings.count { it.embedding != null }} chunks")
+
+        return policyTermsChunkRepository.saveAll(chunksWithEmbeddings)
     }
 }
