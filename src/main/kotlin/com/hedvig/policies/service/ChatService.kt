@@ -45,7 +45,9 @@ class ChatService(
         val personnummer = PersonnummerExtractor.extractPersonnummer(request.message)
         if (personnummer != null) {
             conversationPersonnummer[conversationId] = personnummer
-            logger.info("Detected personnummer for conversation: $conversationId")
+            logger.info("Detected and stored personnummer: $personnummer for conversation: $conversationId")
+        } else {
+            logger.debug("No personnummer found in message: ${request.message}")
         }
 
         // Get stored personnummer for this conversation (if any)
@@ -55,9 +57,12 @@ class ChatService(
         var insuranceNotFound = false
         val userInsurance = storedPersonnummer?.let {
             try {
-                policyService.getInsuranceByPersonalNumber(it)
+                logger.info("Fetching insurance for personnummer: $it")
+                val insurance = policyService.getInsuranceByPersonalNumber(it)
+                logger.info("Successfully fetched insurance for ${insurance.customerName} with plan ${insurance.policyType}")
+                insurance
             } catch (e: Exception) {
-                logger.warn("Could not fetch insurance for personnummer: ${e.message}")
+                logger.warn("Could not fetch insurance for personnummer $it: ${e.message}")
                 insuranceNotFound = true
                 null
             }
