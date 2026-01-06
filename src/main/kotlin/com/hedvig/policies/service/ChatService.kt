@@ -306,6 +306,11 @@ class ChatService(
     }
 
     private fun shouldAskClarification(message: String, conversationHistory: List<ChatMessage>): Boolean {
+        // Disable clarification for now - hybrid search with topic mapping handles specificity better
+        return false
+
+        // Original logic kept for reference:
+        /*
         // Keywords that often indicate ambiguous questions about compensation/coverage
         val ambiguousPatterns = listOf(
             Regex("""ersättning.*bas""", RegexOption.IGNORE_CASE),
@@ -321,7 +326,7 @@ class ChatService(
         // Check if the message lacks specific incident type
         val hasSpecificIncident = listOf(
             "brand", "stöld", "inbrott", "vatten", "läckage", "skadegörelse",
-            "explosion", "storm", "översvämning", "rån", "glasskada"
+            "explosion", "storm", "översvämning", "rån", "glasskada", "eldsvåda"
         ).any { message.contains(it, ignoreCase = true) }
 
         // Don't ask for clarification if user is clearly responding to a previous question
@@ -330,6 +335,7 @@ class ChatService(
             conversationHistory.last().content.contains("?")
 
         return isAmbiguous && !hasSpecificIncident && !isLikelyResponse
+        */
     }
 
     private fun generateClarificationQuestions(

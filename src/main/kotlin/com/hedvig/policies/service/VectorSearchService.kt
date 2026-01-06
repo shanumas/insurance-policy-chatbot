@@ -230,9 +230,17 @@ class VectorSearchService(
         val filteredChunks = allChunks.filter { chunk ->
             val metadata = chunk.metadata
 
-            // Plan filter: user's plan OR "All" chunks
+            // Plan filter with hierarchy:
+            // Bas users: see "All" only
+            // Standard users: see "All" + "Standard"
+            // Max users: see "All" + "Standard" + "Max"
             val planMatches = if (userPlan != null) {
-                metadata.plan == userPlan || metadata.plan == "All"
+                when (userPlan) {
+                    "Bas" -> metadata.plan == "All"
+                    "Standard" -> metadata.plan == "All" || metadata.plan == "Standard"
+                    "Max" -> metadata.plan == "All" || metadata.plan == "Standard" || metadata.plan == "Max"
+                    else -> true
+                }
             } else {
                 true  // No plan filter
             }
@@ -292,9 +300,14 @@ class VectorSearchService(
     private fun matchesFilter(chunk: PolicyChunkDto, filter: MetadataFilter): Boolean {
         val metadata = chunk.metadata
 
-        // Plan filter: match exact plan OR "All" chunks
+        // Plan filter with hierarchy
         if (filter.plan != null) {
-            val planMatches = metadata.plan == filter.plan || metadata.plan == "All"
+            val planMatches = when (filter.plan) {
+                "Bas" -> metadata.plan == "All"
+                "Standard" -> metadata.plan == "All" || metadata.plan == "Standard"
+                "Max" -> metadata.plan == "All" || metadata.plan == "Standard" || metadata.plan == "Max"
+                else -> true
+            }
             if (!planMatches) return false
         }
 

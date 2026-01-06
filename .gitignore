@@ -38,6 +38,3 @@ build/
 *.trace.db
 db-file*
 src/main/resources/application.properties
-
-### JSON Data Storage ###
-data/

@@ -264,6 +264,13 @@ class PdfParsingService(
         try {
             val stripper = PDFTextStripper()
 
+            // Determine plan boundaries
+            // Pages 1-48: All plans (Bas is foundation for all)
+            // Pages 49-57: Standard and Max
+            // Pages 58+: Max only
+            val standardStartPage = 49
+            val maxStartPage = 58
+
             tableOfContents.forEachIndexed { index, entry ->
                 // Determine end page (start of next topic - 1, or last page)
                 val endPage = if (index < tableOfContents.size - 1) {
@@ -278,12 +285,11 @@ class PdfParsingService(
                 val topicText = stripper.getText(document).trim()
 
                 if (topicText.isNotEmpty()) {
-                    // Determine plan level from topic name
+                    // Determine plan level based on page range
                     val plan = when {
-                        entry.topic.contains("Bas", ignoreCase = true) -> "Bas"
-                        entry.topic.contains("Standard", ignoreCase = true) -> "Standard"
-                        entry.topic.contains("Max", ignoreCase = true) -> "Max"
-                        else -> "All"
+                        entry.startPage >= maxStartPage -> "Max"
+                        entry.startPage >= standardStartPage -> "Standard"
+                        else -> "All"  // Pages 1-48: available to all plans
                     }
 
                     chunks.add(
