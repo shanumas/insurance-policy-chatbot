@@ -44,3 +44,16 @@ GET http://localhost:8080/api/policies?personalNumber=199001011234&date=2024-08-
 
 ### Get policy by insurance ID and date
 GET http://localhost:8080/api/policies/by-insurance?insuranceId=1&date=2024-03-15
+
+
+# Policy Terms Endpoints
+
+
+### Get chunk count for policy terms document
+GET http://localhost:8080/api/policy-terms/hedvig-brf-standard/count
+
+### Get all chunks for policy terms document
+GET http://localhost:8080/api/policy-terms/hedvig-brf-standard
+
+### Search policy terms for keyword
+GET http://localhost:8080/api/policy-terms/hedvig-brf-standard/search?keyword=försäkring
