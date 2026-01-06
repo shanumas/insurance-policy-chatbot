@@ -27,6 +27,8 @@ class PolicyService(
         val insurance = Insurance(personalNumber = request.personalNumber)
         val savedInsurance = insuranceRepository.save(insurance)
 
+        val insuranceId = savedInsurance.id ?: throw IllegalStateException("Insurance ID cannot be null after save")
+
         val policy = Policy(
             insurance = savedInsurance,
             address = request.address,
@@ -36,18 +38,20 @@ class PolicyService(
         )
         policyRepository.save(policy)
 
-        return getInsurance(savedInsurance.id!!)
+        return getInsurance(insuranceId)
     }
 
     fun updatePolicy(personalNumber: String, request: UpdatePolicyRequest): InsuranceResponse {
         val insurance = insuranceRepository.findByPersonalNumber(personalNumber)
             .orElseThrow { IllegalArgumentException("No insurance found for personnummer: $personalNumber") }
 
-        val currentVersion = policyRepository.findMaxVersionByInsuranceId(insurance.id!!)
+        val insuranceId = insurance.id ?: throw IllegalStateException("Insurance ID cannot be null")
+
+        val currentVersion = policyRepository.findMaxVersionByInsuranceId(insuranceId)
         val newVersion = currentVersion + 1
 
         // End the current active policy
-        val activePolicies = policyRepository.findByInsuranceIdOrderByVersionDesc(insurance.id)
+        val activePolicies = policyRepository.findByInsuranceIdOrderByVersionDesc(insuranceId)
             .filter { it.endDate == null }
 
         activePolicies.forEach { activePolicy ->
@@ -65,18 +69,18 @@ class PolicyService(
         )
         policyRepository.save(newPolicy)
 
-        return getInsurance(insurance.id)
+        return getInsurance(insuranceId)
     }
 
     fun getInsurance(insuranceId: Long): InsuranceResponse {
         val insurance = insuranceRepository.findById(insuranceId)
             .orElseThrow { IllegalArgumentException("Insurance not found with id: $insuranceId") }
 
-        val policies = policyRepository.findByInsuranceIdOrderByVersionDesc(insurance.id!!)
+        val policies = policyRepository.findByInsuranceIdOrderByVersionDesc(insuranceId)
             .map { PolicyResponse.from(it) }
 
         return InsuranceResponse(
-            id = insurance.id,
+            id = insuranceId,
             personalNumber = insurance.personalNumber,
             policies = policies
         )
@@ -85,7 +89,8 @@ class PolicyService(
     fun getInsuranceByPersonalNumber(personalNumber: String): InsuranceResponse {
         val insurance = insuranceRepository.findByPersonalNumber(personalNumber)
             .orElseThrow { IllegalArgumentException("No insurance found for personnummer: $personalNumber") }
-        return getInsurance(insurance.id!!)
+        val insuranceId = insurance.id ?: throw IllegalStateException("Insurance ID cannot be null")
+        return getInsurance(insuranceId)
     }
 
     fun getPoliciesByPersonalNumberAndDate(personalNumber: String, date: LocalDate): List<PolicyResponse> {
@@ -100,10 +105,11 @@ class PolicyService(
 
     fun getAllInsurances(): List<InsuranceResponse> {
         return insuranceRepository.findAll().map { insurance ->
+            val insuranceId = insurance.id ?: throw IllegalStateException("Insurance ID cannot be null")
             InsuranceResponse(
-                id = insurance.id!!,
+                id = insuranceId,
                 personalNumber = insurance.personalNumber,
-                policies = policyRepository.findByInsuranceIdOrderByVersionDesc(insurance.id)
+                policies = policyRepository.findByInsuranceIdOrderByVersionDesc(insuranceId)
                     .map { PolicyResponse.from(it) }
             )
         }

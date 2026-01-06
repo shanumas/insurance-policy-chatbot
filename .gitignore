@@ -32,3 +32,8 @@ build/
 .vscode/
 /bin/
 .claude/
+
+### H2 Database ###
+*.mv.db
+*.trace.db
+db-file*

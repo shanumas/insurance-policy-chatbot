@@ -27,8 +27,9 @@ data class PolicyResponse(
 ) {
     companion object {
         fun from(policy: Policy): PolicyResponse {
+            val policyId = policy.id ?: throw IllegalStateException("Policy ID cannot be null")
             return PolicyResponse(
-                id = policy.id!!,
+                id = policyId,
                 personalNumber = policy.insurance.personalNumber,
                 address = policy.address,
                 postalCode = policy.postalCode,
