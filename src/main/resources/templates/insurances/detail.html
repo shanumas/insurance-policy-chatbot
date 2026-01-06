@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/header :: head('Insurance Details')"></head>
+<body>
+<div th:replace="fragments/header :: navbar('insurances')"></div>
+
+<div class="container">
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h2>Insurance Details</h2>
+            <a th:href="@{/admin/insurances/{id}/update(id=${insurance.id})}"
+               class="btn">Update Policy</a>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 2rem;">
+            <div>
+                <label style="color: #666; font-size: 0.875rem;">Insurance ID</label>
+                <p style="font-size: 1.25rem; font-weight: 500;" th:text="${insurance.id}">1</p>
+            </div>
+            <div>
+                <label style="color: #666; font-size: 0.875rem;">Personal Number</label>
+                <p style="font-size: 1.25rem; font-weight: 500;" th:text="${insurance.personalNumber}">199001011234</p>
+            </div>
+        </div>
+
+        <h3>Policy Timeline</h3>
+        <p style="color: #666; margin-bottom: 1rem;">
+            All policy versions for this insurance, ordered by most recent first.
+        </p>
+
+        <div th:if="${insurance.policies.isEmpty()}" class="empty-state">
+            <p>No policies found for this insurance.</p>
+        </div>
+
+        <div th:if="${!insurance.policies.isEmpty()}">
+            <div th:each="policy, iterStat : ${insurance.policies}" class="policy-version">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                    <div>
+                        <h4 style="margin-bottom: 0.5rem;">
+                            Version <span th:text="${policy.version}">1</span>
+                            <span th:if="${iterStat.first}" class="badge badge-success">Current</span>
+                        </h4>
+                    </div>
+                    <div style="text-align: right; font-size: 0.875rem; color: #666;">
+                        <div>Policy ID: <span th:text="${policy.id}">1</span></div>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+                    <div>
+                        <label style="color: #666; font-size: 0.875rem; display: block; margin-bottom: 0.25rem;">Address</label>
+                        <p th:text="${policy.address}">Kungsgatan 16</p>
+                    </div>
+                    <div>
+                        <label style="color: #666; font-size: 0.875rem; display: block; margin-bottom: 0.25rem;">Postal Code</label>
+                        <p th:text="${policy.postalCode}">11135</p>
+                    </div>
+                    <div>
+                        <label style="color: #666; font-size: 0.875rem; display: block; margin-bottom: 0.25rem;">Start Date</label>
+                        <p th:text="${#temporals.format(policy.startDate, 'yyyy-MM-dd')}">2024-01-01</p>
+                    </div>
+                    <div>
+                        <label style="color: #666; font-size: 0.875rem; display: block; margin-bottom: 0.25rem;">End Date</label>
+                        <p th:if="${policy.endDate != null}"
+                           th:text="${#temporals.format(policy.endDate, 'yyyy-MM-dd')}">2024-06-30</p>
+                        <p th:if="${policy.endDate == null}" style="color: #999;">Active (no end date)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #ddd;">
+            <a href="/admin/insurances" class="btn btn-secondary">← Back to List</a>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

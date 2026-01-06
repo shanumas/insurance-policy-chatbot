@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/header :: head('All Insurances')"></head>
+<body>
+<div th:replace="fragments/header :: navbar('insurances')"></div>
+
+<div class="container">
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h2>All Insurances</h2>
+            <a href="/admin/insurances/new" class="btn">➕ Create New Insurance</a>
+        </div>
+
+        <div th:if="${insurances.isEmpty()}" class="empty-state">
+            <p>No insurances found. Create your first insurance to get started!</p>
+            <a href="/admin/insurances/new" class="btn" style="margin-top: 1rem;">Create Insurance</a>
+        </div>
+
+        <table th:if="${!insurances.isEmpty()}">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Personal Number</th>
+                    <th>Policies</th>
+                    <th>Current Address</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="insurance : ${insurances}">
+                    <td th:text="${insurance.id}">1</td>
+                    <td th:text="${insurance.personalNumber}">199001011234</td>
+                    <td>
+                        <span class="badge badge-info" th:text="${insurance.policies.size()} + ' version(s)'">1 version(s)</span>
+                    </td>
+                    <td>
+                        <span th:if="${!insurance.policies.isEmpty()}"
+                              th:text="${insurance.policies[0].address}">Kungsgatan 16</span>
+                        <span th:if="${insurance.policies.isEmpty()}" style="color: #999;">-</span>
+                    </td>
+                    <td>
+                        <a th:href="@{/admin/insurances/{id}(id=${insurance.id})}"
+                           class="btn btn-secondary"
+                           style="padding: 0.5rem 1rem; font-size: 0.875rem;">View Details</a>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</body>
+</html>

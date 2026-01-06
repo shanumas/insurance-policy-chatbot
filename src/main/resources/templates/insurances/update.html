@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/header :: head('Update Policy')"></head>
+<body>
+<div th:replace="fragments/header :: navbar('insurances')"></div>
+
+<div class="container">
+    <div class="card">
+        <h2>Update Policy</h2>
+        <p style="color: #666; margin-bottom: 1rem;">
+            Creating a new policy version for personal number: <strong th:text="${insurance.personalNumber}">199001011234</strong>
+        </p>
+
+        <div class="alert alert-success" style="margin-bottom: 2rem;">
+            ℹ️ This will create a new version of the policy. The previous version will be automatically ended.
+        </div>
+
+        <div th:if="${error}" class="alert alert-error" th:text="${error}">
+            Error message here
+        </div>
+
+        <form th:action="@{/admin/insurances/{id}/update(id=${insurance.id})}" method="post">
+            <div class="form-group">
+                <label for="address">New Address *</label>
+                <input type="text"
+                       id="address"
+                       name="address"
+                       th:value="${currentPolicy != null ? currentPolicy.address : ''}"
+                       placeholder="e.g., Vasagatan 20"
+                       required>
+                <small style="color: #666; display: block; margin-top: 0.25rem;">
+                    Current: <span th:text="${currentPolicy != null ? currentPolicy.address : 'N/A'}">Kungsgatan 16</span>
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="postalCode">New Postal Code *</label>
+                <input type="text"
+                       id="postalCode"
+                       name="postalCode"
+                       th:value="${currentPolicy != null ? currentPolicy.postalCode : ''}"
+                       placeholder="e.g., 11120"
+                       required
+                       pattern="[0-9]{5}"
+                       title="Postal code must be 5 digits">
+                <small style="color: #666; display: block; margin-top: 0.25rem;">
+                    Current: <span th:text="${currentPolicy != null ? currentPolicy.postalCode : 'N/A'}">11135</span>
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="startDate">New Start Date *</label>
+                <input type="date"
+                       id="startDate"
+                       name="startDate"
+                       required>
+                <small style="color: #666; display: block; margin-top: 0.25rem;">
+                    The date when this new policy version becomes active
+                </small>
+            </div>
+
+            <div style="display: flex; gap: 1rem;">
+                <button type="submit" class="btn">Create New Version</button>
+                <a th:href="@{/admin/insurances/{id}(id=${insurance.id})}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="card" th:if="${currentPolicy != null}">
+        <h3>Current Active Policy (Version <span th:text="${currentPolicy.version}">1</span>)</h3>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-top: 1rem;">
+            <div>
+                <label style="color: #666; font-size: 0.875rem; display: block; margin-bottom: 0.25rem;">Address</label>
+                <p th:text="${currentPolicy.address}">Kungsgatan 16</p>
+            </div>
+            <div>
+                <label style="color: #666; font-size: 0.875rem; display: block; margin-bottom: 0.25rem;">Postal Code</label>
+                <p th:text="${currentPolicy.postalCode}">11135</p>
+            </div>
+            <div>
+                <label style="color: #666; font-size: 0.875rem; display: block; margin-bottom: 0.25rem;">Start Date</label>
+                <p th:text="${#temporals.format(currentPolicy.startDate, 'yyyy-MM-dd')}">2024-01-01</p>
+            </div>
+            <div>
+                <label style="color: #666; font-size: 0.875rem; display: block; margin-bottom: 0.25rem;">Status</label>
+                <p><span class="badge badge-success">Active</span></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

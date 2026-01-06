@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/header :: head('Home')"></head>
+<body>
+<div th:replace="fragments/header :: navbar('home')"></div>
+
+<div class="container">
+    <div class="card">
+        <h2>Welcome to Hedvig Policy Manager</h2>
+        <p style="margin-bottom: 2rem; color: #666;">
+            Manage insurance policies for bostadsrätt (condominium) insurance.
+        </p>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-top: 2rem;">
+            <div style="padding: 1.5rem; border: 2px solid #4CAF50; border-radius: 8px;">
+                <h3>📋 View Insurances</h3>
+                <p style="color: #666; margin-bottom: 1rem;">
+                    Browse all insurance contracts and their policy versions.
+                </p>
+                <a href="/admin/insurances" class="btn">View All Insurances</a>
+            </div>
+
+            <div style="padding: 1.5rem; border: 2px solid #4CAF50; border-radius: 8px;">
+                <h3>➕ Create New Insurance</h3>
+                <p style="color: #666; margin-bottom: 1rem;">
+                    Start a new insurance contract for a customer.
+                </p>
+                <a href="/admin/insurances/new" class="btn">Create Insurance</a>
+            </div>
+
+            <div style="padding: 1.5rem; border: 2px solid #4CAF50; border-radius: 8px;">
+                <h3>🗄️ Database Console</h3>
+                <p style="color: #666; margin-bottom: 1rem;">
+                    Access H2 database console for direct SQL queries.
+                </p>
+                <a href="/h2-console" class="btn btn-secondary" target="_blank">Open Console</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Features</h3>
+        <ul style="list-style: none; padding: 0;">
+            <li style="padding: 0.5rem 0; border-bottom: 1px solid #eee;">✅ Create and manage insurance contracts</li>
+            <li style="padding: 0.5rem 0; border-bottom: 1px solid #eee;">✅ Track policy versions over time</li>
+            <li style="padding: 0.5rem 0; border-bottom: 1px solid #eee;">✅ Update policy details (creates new version)</li>
+            <li style="padding: 0.5rem 0; border-bottom: 1px solid #eee;">✅ Query policies by date</li>
+            <li style="padding: 0.5rem 0;">✅ REST API for integration</li>
+        </ul>
+    </div>
+</div>
+
+</body>
+</html>

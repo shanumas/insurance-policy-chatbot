@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/header :: head('Create Insurance')"></head>
+<body>
+<div th:replace="fragments/header :: navbar('create')"></div>
+
+<div class="container">
+    <div class="card">
+        <h2>Create New Insurance</h2>
+        <p style="color: #666; margin-bottom: 2rem;">
+            Start a new insurance contract for a customer.
+        </p>
+
+        <div th:if="${error}" class="alert alert-error" th:text="${error}">
+            Error message here
+        </div>
+
+        <form action="/admin/insurances" method="post">
+            <div class="form-group">
+                <label for="personalNumber">Personal Number *</label>
+                <input type="text"
+                       id="personalNumber"
+                       name="personalNumber"
+                       placeholder="e.g., 199001011234"
+                       required
+                       pattern="[0-9]{12}"
+                       title="Personal number must be 12 digits">
+                <small style="color: #666; display: block; margin-top: 0.25rem;">
+                    Swedish personal number (12 digits)
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="address">Address *</label>
+                <input type="text"
+                       id="address"
+                       name="address"
+                       placeholder="e.g., Kungsgatan 16"
+                       required>
+            </div>
+
+            <div class="form-group">
+                <label for="postalCode">Postal Code *</label>
+                <input type="text"
+                       id="postalCode"
+                       name="postalCode"
+                       placeholder="e.g., 11135"
+                       required
+                       pattern="[0-9]{5}"
+                       title="Postal code must be 5 digits">
+            </div>
+
+            <div class="form-group">
+                <label for="startDate">Start Date *</label>
+                <input type="date"
+                       id="startDate"
+                       name="startDate"
+                       required>
+            </div>
+
+            <div style="display: flex; gap: 1rem;">
+                <button type="submit" class="btn">Create Insurance</button>
+                <a href="/admin/insurances" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3>ℹ️ Information</h3>
+        <ul style="list-style: none; padding: 0;">
+            <li style="padding: 0.5rem 0; border-bottom: 1px solid #eee;">
+                Each personal number can only have one insurance
+            </li>
+            <li style="padding: 0.5rem 0; border-bottom: 1px solid #eee;">
+                The start date determines when coverage begins
+            </li>
+            <li style="padding: 0.5rem 0;">
+                You can update policy details later (creates a new version)
+            </li>
+        </ul>
+    </div>
+</div>
+
+</body>
+</html>
