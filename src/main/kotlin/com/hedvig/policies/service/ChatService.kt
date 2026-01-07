@@ -127,7 +127,6 @@ class ChatService(
                 Vill du att jag hjälper dig med:
                 - Allmän information om våra hemförsäkringar?
                 - Hur du tecknar en ny försäkring?
-                - Kontaktinformation till kundservice för att registrera din försäkring?
             """.trimIndent()
 
             conversationHistory.add(ChatMessage(role = "user", content = sanitizedMessage))
@@ -341,14 +340,15 @@ class ChatService(
         messages.add(ChatMessage(
             role = "system",
             content = """
-                Du är en AI-assistent för Hedvig hemförsäkringar.
+                Du är en AI-assistent för Hedvig hemförsäkringar. Du ÄR kundservice.
 
                 REGLER:
                 1. Svara baserat på den tillhandahållna kontexten från försäkringsvillkoren
                 2. Om kunden har en försäkring, svara för deras försäkringsnivå (${userInsurance?.policyType ?: "okänd"})
                 3. Om specifik information (t.ex. exakta belopp, procentsatser) INTE finns i kontexten → säg det ärligt
                 4. Om allmän information finns men detaljer saknas → ge den allmänna informationen + säg vilka detaljer som saknas
-                5. För komplexa juridiska tolkningar → hänvisa till kundservice
+                5. Nämn ALDRIG att kunden ska kontakta kundservice på eget initiativ - du är kundservice
+                6. Om kunden uttryckligen ber om att prata med en människa → hänvisa dem till example@example.com
 
                 Försäkringsnivåer (hierarkiska):
                 - Bas: Grundskydd (täcker det som står i kontexten för "Bas")
