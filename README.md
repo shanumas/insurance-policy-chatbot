@@ -1,83 +1,211 @@
-# Hedvig Policy Manager
+# Insurance Policy Chatbot - Run Guide
 
-You are to build a very basic [insurance policy](https://en.wikipedia.org/wiki/Insurance_policy) server application, which holds
-insurance contracts signed between an insurance provider (Hedvig) and a policyholder (end-users).
-For simplicity, we will also be dealing with a stripped-down version of home insurance.
+## Prerequisites
 
-Since this is a code test, we skip important bits such as authentication and user management, and instead will focus
-entirely on designing of the APIs and data model of the insurance policies.
+- Java 21+
+- Maven (or use included `mvnw.cmd`)
+- OpenAI API key (provided by uma)
 
-If you feel anything is unclear or underspecified, make assumptions and explain your thinking during the interview.
+## Environment Setup
 
-## Getting started
+Set your OpenAI API key:
 
-This repo is already set up as a launchable Spring Boot application with enough dependencies to build HTTP endpoints.
-The maven `pom.xml` file contains three suggestions for database libraries, where you get to choose the one you are
-most comfortable with (or excited to try).
+# application.properties file, under project-root
+openai.api.key="sk-..."
 
-## Requirements
+## Running the Application
 
-### Data model
+```bash
+./mvnw.cmd spring-boot:run
+```
 
-To create a valid insurance `Policy`, the following data points need to be collected:
+The app will start at: http://localhost:8080
 
-* `personalNumber (string)` - the personal identity number of the policyholder 
-* `address (string)` - the street address of the home, like "Kungsgatan 16" 
-* `postalCode (string)` - the postal code of the home, like "11135"
-* `startDate (date)` - the day this policy begins
+### Hot Reload (Development)
 
-#### Insurance timeline
+With DevTools enabled, run in one terminal:
+```bash
+./mvnw.cmd spring-boot:run
+```
 
-Typically, insurances can be updated by the policyholder with a new `startDate` and updated information — creating
-a timeline of multiple back-to-back policies. You can think of this timeline as one `Insurance`, which holds multiple
-`Policy` entries.
+In another terminal, recompile on changes:
+```bash
+./mvnw.cmd compile
+```
 
-You can assume that `personalNumber` never changes between policies inside a single insurance.
+## Running Tests``
 
-### Starting an insurance
+### E2E RAG Pipeline Tests
+```bash
+./mvnw.cmd test -Dtest=RagPipelineE2ETest
+```
 
-There should be an endpoint where insurances can be started by providing enough information to create a first policy.
+## API Endpoints
 
-### Reading insurance and policies
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Web UI |
+| `/api/chat` | POST | Chat with the bot |
+| `/api/chat/{id}` | DELETE | Clear conversation |
+| `/api/policies` | GET | List all policies |
+| `/h2-console` | GET | Database console |
 
-There should be ways of reading policies back from the system. Here are some typical use cases for how one typically
-queries the insurances:
+# Project Structure
 
-* List all `Policies` for a given `personalNumber` on a specific `date`
-* For a given `Insurance`, show its policy on a specific `date`
+```
+insurance-policy-chatbot/
+├── src/main/kotlin/com/hedvig/policies/
+│   ├── PoliciesApplication.kt      # Spring Boot entry point
+│   ├── controller/
+│   │   ├── ChatController.kt       # REST API for chat
+│   │   ├── PolicyController.kt     # REST API for policies
+│   │   └── WebController.kt        # Serves HTML pages
+│   ├── service/
+│   │   ├── ChatService.kt          # Main chat orchestration
+│   │   ├── OpenAIService.kt        # OpenAI API client
+│   │   ├── VectorSearchService.kt  # RAG vector search
+│   │   ├── JsonStorageService.kt   # Embeddings storage
+│   │   ├── PolicyService.kt        # Policy CRUD operations
+│   │   └── PdfParsingService.kt    # PDF text extraction
+│   ├── domain/
+│   │   ├── Insurance.kt            # Insurance entity (JPA)
+│   │   └── Policy.kt               # Policy entity (JPA)
+│   ├── dto/
+│   │   ├── ChatDto.kt              # Chat request/response
+│   │   ├── OpenAIDto.kt            # OpenAI API models
+│   │   └── PolicyChunkDto.kt       # Vector chunk models
+│   └── util/
+│       └── PersonnummerExtractor.kt # Swedish ID extraction
+├── src/main/resources/
+│   ├── application.properties      # App configuration
+│   ├── templates/                  # Thymeleaf HTML templates
+│   └── db/changelog/               # Liquibase migrations
+├── data/
+│   └── policy-chunks-embeddings.json  # Pre-computed embeddings
+├── docs/terms/
+│   └── hedvig-brf-standard.pdf     # Insurance terms PDF
+└── src/test/kotlin/
+    └── RagPipelineE2ETest.kt       # End-to-end tests
+```
 
-### Policy Assistant
+## Data Flow
 
-Build a chatbot that can answer questions about specific policies using retrieval-augmented generation.
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        RAG PIPELINE                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1. DOCUMENT INGESTION (one-time)                              │
+│     ┌─────────┐    ┌──────────────┐    ┌──────────────────┐   │
+│     │ PDF     │───▶│ PdfParsing   │───▶│ OpenAI Embedding │   │
+│     │ Terms   │    │ Service      │    │ API              │   │
+│     └─────────┘    └──────────────┘    └────────┬─────────┘   │
+│                                                  │              │
+│                                                  ▼              │
+│                                        ┌──────────────────┐    │
+│                                        │ JSON File        │    │
+│                                        │ (embeddings)     │    │
+│                                        └──────────────────┘    │
+│                                                                 │
+│  2. QUERY PROCESSING (each request)                            │
+│     ┌─────────┐    ┌──────────────┐    ┌──────────────────┐   │
+│     │ User    │───▶│ ChatService  │───▶│ VectorSearch     │   │
+│     │ Query   │    │              │    │ Service          │   │
+│     └─────────┘    └──────────────┘    └────────┬─────────┘   │
+│                                                  │              │
+│         ┌────────────────────────────────────────┘              │
+│         │                                                       │
+│         ▼                                                       │
+│     ┌──────────────────┐                                       │
+│     │ a) Topic Mapping │  (GPT-4o-mini maps query to topics)   │
+│     └────────┬─────────┘                                       │
+│              │                                                  │
+│              ▼                                                  │
+│     ┌──────────────────┐                                       │
+│     │ b) Filter Chunks │  (by topic + user's plan level)       │
+│     └────────┬─────────┘                                       │
+│              │                                                  │
+│              ▼                                                  │
+│     ┌──────────────────┐                                       │
+│     │ c) Semantic Rank │  (cosine similarity on embeddings)    │
+│     └────────┬─────────┘                                       │
+│              │                                                  │
+│              ▼                                                  │
+│     ┌──────────────────┐    ┌──────────────────┐              │
+│     │ d) Context +     │───▶│ GPT-4o-mini      │              │
+│     │    Query         │    │ Generate Answer  │              │
+│     └──────────────────┘    └────────┬─────────┘              │
+│                                       │                        │
+│                                       ▼                        │
+│                              ┌──────────────────┐              │
+│                              │ Response +       │              │
+│                              │ Confidence Score │              │
+│                              └──────────────────┘              │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-**Functionality:**
-- Accept conversational queries: "What's covered under my policy?" or "When does my coverage start?"
-- Retrieve relevant policy details from database
-- Use LLM with RAG pattern to generate accurate, context-aware responses
-- Maintain conversation context across multiple questions
+## Key Components
 
-### Claim Data Collection
+### 1. Insurance Terms PDF
+**Location:** `docs/terms/hedvig-brf-standard.pdf`
 
-Build a claim parsing system that extracts structured and relevant data from unstructured text.
+The source document containing insurance policy terms in Swedish. This PDF is parsed and chunked into searchable segments.
 
-**Functionality:**
-- Accept unstructured claim submission as input. Example: "I dropped my phone and the screen broke."
-- Use an LLM to extract relevant data from the claim, like type of damage, location, etc.
-- Validate extracted data
-- Calculate confidence score (0.0 to 1.0)
+### 2. Embeddings JSON File
+**Location:** `data/policy-chunks-embeddings.json`
 
-#### LLM API Access
+Pre-computed vector embeddings for each text chunk. Structure:
+```json
+{
+  "chunks": [
+    {
+      "documentName": "hedvig-brf-standard",
+      "chunkIndex": 0,
+      "content": "Eldsvåda - Max: 3 000 000 kr...",
+      "embedding": [0.123, -0.456, ...],
+      "metadata": {
+        "topic": "Eldsvåda",
+        "plan": "Max",
+        "documentSection": "Ersättningstabell"
+      }
+    }
+  ]
+}
+```
 
-- You may use any of the following (free options available):
-    - Google Gemini (free tier recommended)
-    - Groq (free tier with rate limits)
-    - Ollama with local models (llama3, mistral, etc.)
-    - Or paid APIs if you have access (OpenAI, Anthropic, Azure, etc.)
-  
-## Testing
+### 3. H2 Database
+**Location:** `./db-file.mv.db` (auto-created)
 
-Feel free to add tests for your system, and write them in the way you feel brings the most value.
+Stores customer and policy data:
+- `insurance` table: Customer info + plan type (Bas/Standard/Max)
+- `policy` table: Policy versions with addresses and dates
 
-## Submitting your solution
+Access console: http://localhost:8080/h2-console
+- JDBC URL: `jdbc:h2:file:./db-file`
+- Username: `sa`
+- Password: (empty)
 
-Create a private repository on GitHub and invite the reviewers from Hedvig provided by your hiring contact.
+### 4. Chat Flow
+
+1. **User sends message** → `ChatController`
+2. **Extract personnummer** (if provided) → `PersonnummerExtractor`
+3. **Lookup user's insurance** → `PolicyService` → H2 Database
+4. **Hybrid vector search** → `VectorSearchService`
+   - AI maps query to relevant topics
+   - Filter chunks by user's plan level
+   - Rank by semantic similarity
+5. **Generate response** → `OpenAIService` (GPT-4o-mini)
+6. **Return with confidence score** from logprobs
+
+### 5. Confidence Score
+
+Calculated from OpenAI's token log probabilities:
+- `logprobs` returned for each token
+- Average probability = `exp(avg(logprobs))`
+- Displayed as percentage (0-100%)
+
+| Score | Meaning |
+|-------|---------|
+| 80%+ | High confidence (green) |
+| 50-79% | Medium confidence (yellow) |
+| <50% | Low confidence (red) |
