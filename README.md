@@ -4,6 +4,38 @@
 
 <video src="videos/app.mp4" controls width="100%"></video>
 
+## Hedvigs terms
+
+To create a functional chatbot, I used HEDVIGs termd document
+from their site: SE_APARTMENT_BRF-2025-10-01-HEDVIG-T&C.pdf 
+
+This document is chunked into 47 topics as provided in the document
+index.  These topics are then added with additional metadata like
+all, standard+max and max levels to help the user in a better way.
+
+## Chunking
+
+These chunks are then converted into embeddings to enable semantic
+search.  User is ased for personummer to identify themself.  then the
+user-specific data is retrieved from database.
+
+## Hybrid RAG
+
+Hybrid search is implemented, where pre-filtering is done to check
+which topic the user question is related to (fire, water leackage, etc),
+then only the relavent chunk is sent to the next stage, where the
+openai-chat-completions api is supposed to answer the users question 
+(with the context provided fromt he hedvigs pdf document).
+
+## Knows issues - to be improved in next iteration
+
+In some cases the titile might not match with the users intent.  For
+example if user asks a question about "my phone broke".  There is no
+topic related to this in the terms pdf.  In this case we have to find 
+the semantically close topic.  But the actual data is in the table
+"Ersättningstabell för dina saker".  In order to fix this problem, we 
+need to add more metadata for each chunks, which can be done later.
+
 ## Prerequisites
 
 - Java 21+
