@@ -37,4 +37,3 @@ build/
 *.mv.db
 *.trace.db
 db-file*
-src/main/resources/application.properties
