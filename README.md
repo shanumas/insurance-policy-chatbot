@@ -4,6 +4,8 @@
 
 [![Watch the demo](https://img.youtube.com/vi/5tFWKtUJWuw/maxresdefault.jpg)](https://youtu.be/5tFWKtUJWuw)
 
+[![Watch the Solution Explanation](https://img.youtube.com/vi/5tFWKtUJWuw/maxresdefault.jpg)](https://youtu.be/c3Cmgt-W13Q)
+
 ## Hedvigs terms
 
 To create a functional chatbot, I used HEDVIGs termd document
