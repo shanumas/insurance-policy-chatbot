@@ -195,6 +195,61 @@ class OpenAIService(
     }
 
     /**
+     * Expand user query with Swedish insurance terminology for better semantic search
+     */
+    fun expandQueryWithInsuranceTerms(query: String): String {
+        if (apiKey.isBlank()) {
+            logger.warn("OpenAI API key not configured. Returning original query.")
+            return query
+        }
+
+        try {
+            val systemPrompt = """
+                Du är en expert på svenska hemförsäkringar.
+                Din uppgift: expandera användarens fråga med relevanta svenska försäkringstermer för bättre sökning.
+
+                Regler:
+                - Behåll originalfrågan och lägg till relevanta svenska försäkringstermer
+                - Mappa scenarion till försäkringstermer:
+                  * Tappade/råkade/av misstag/gick sönder → drulle, allrisk, olyckshändelse
+                  * Stulet/borta/inbrott → stöld, inbrott, skadegörelse
+                  * Brand/eld/rök → eldsvåda, brand, explosion
+                  * Vatten/läcka → vattenläcka, vattenskada
+                  * Resa/utomlands → reseskydd
+                - Svara ENDAST med den expanderade frågan, ingen förklaring
+                - Max 50 ord totalt
+            """.trimIndent()
+
+            val request = mapOf(
+                "model" to "gpt-4o-mini",
+                "messages" to listOf(
+                    mapOf("role" to "system", "content" to systemPrompt),
+                    mapOf("role" to "user", "content" to query)
+                ),
+                "temperature" to 0.3,
+                "max_tokens" to 100
+            )
+
+            val response = webClient.post()
+                .uri("/chat/completions")
+                .bodyValue(request)
+                .retrieve()
+                .bodyToMono(Map::class.java)
+                .block()
+
+            @Suppress("UNCHECKED_CAST")
+            val choices = response?.get("choices") as? List<Map<String, Any>>
+            val expandedQuery = (choices?.get(0)?.get("message") as? Map<String, Any>)?.get("content") as? String
+
+            return expandedQuery?.trim() ?: query
+
+        } catch (e: Exception) {
+            logger.error("Error expanding query: ${e.message}", e)
+            return query
+        }
+    }
+
+    /**
      * Uses OpenAI to intelligently chunk insurance document text with metadata
      * Uses JSON mode for structured output
      */

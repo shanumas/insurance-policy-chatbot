@@ -203,6 +203,20 @@ class VectorSearchService(
     }
 
     /**
+     * Use LLM to expand query with Swedish insurance terminology for better semantic search
+     */
+    private fun expandQueryWithInsuranceTerms(query: String): String {
+        return try {
+            val expandedQuery = openAIService.expandQueryWithInsuranceTerms(query)
+            logger.info("LLM expanded query: '$query' -> '$expandedQuery'")
+            expandedQuery
+        } catch (e: Exception) {
+            logger.warn("Failed to expand query with LLM, using original: ${e.message}")
+            query
+        }
+    }
+
+    /**
      * HYBRID SEARCH: AI-powered topic mapping + metadata filtering + semantic ranking
      * This is the recommended approach for insurance queries
      */
@@ -254,17 +268,22 @@ class VectorSearchService(
         logger.info("Filtered to ${filteredChunks.size}/${allChunks.size} chunks (plan=$userPlan, topics=${relevantTopics.size})")
 
         if (filteredChunks.isEmpty()) {
-            logger.warn("No chunks after filtering, falling back to plan-only filter")
+            logger.warn("No chunks after filtering, falling back to expanded query search")
+            // Expand query with insurance terminology to improve semantic matching
+            val expandedQuery = expandQueryWithInsuranceTerms(query)
+            logger.info("Expanded query for fallback: '$expandedQuery'")
             return if (userPlan != null) {
-                searchWithMetadataFilter(query, MetadataFilter(plan = userPlan), topK, minSimilarity)
+                searchWithMetadataFilter(expandedQuery, MetadataFilter(plan = userPlan), topK, minSimilarity)
             } else {
-                searchAllDocuments(query, topK)
+                searchAllDocuments(expandedQuery, topK)
             }
         }
 
         // Step 3: Rank filtered chunks by semantic similarity
+        // Use expanded query for better semantic matching
+        val expandedQuery = expandQueryWithInsuranceTerms(query)
         val queryEmbedding = try {
-            openAIService.generateEmbedding(query)
+            openAIService.generateEmbedding(expandedQuery)
         } catch (e: Exception) {
             logger.error("Failed to generate query embedding: ${e.message}", e)
             return emptyList()
