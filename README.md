@@ -2,7 +2,7 @@
 
 ## Demo
 
-<video src="videos/app.mp4" controls width="100%"></video>
+![APP demo video](videos/app.mp4)
 
 ## Hedvigs terms
 
