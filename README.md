@@ -2,7 +2,7 @@
 
 ## Demo
 
-![APP demo video](videos/app.mp4)
+[![Watch the demo](https://img.youtube.com/vi/5tFWKtUJWuw/maxresdefault.jpg)](https://youtu.be/5tFWKtUJWuw)
 
 ## Hedvigs terms
 
