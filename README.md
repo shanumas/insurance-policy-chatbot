@@ -1,5 +1,9 @@
 # Insurance Policy Chatbot - Run Guide
 
+## Demo
+
+<video src="videos/app.mp4" controls width="100%"></video>
+
 ## Prerequisites
 
 - Java 21+
