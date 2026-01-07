@@ -4,35 +4,50 @@ object PersonnummerExtractor {
 
     // Swedish personnummer patterns with word boundaries and month/day validation
     // Matches: YYYYMMDDXXXX, YYMMDDXXXX, YYYYMMDD-XXXX, YYMMDD-XXXX
-    private val personnummerPattern = Regex("""\b(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{4}\b|\b\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])[-\s]?\d{4}\b""")
+    private val strictPattern = Regex("""\b(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{4}\b|\b\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])[-\s]?\d{4}\b""")
+
+    // Lenient pattern: any 12-digit number or 10-digit with optional dash (for test personnummer)
+    private val lenientPattern = Regex("""\b\d{12}\b|\b\d{6}[-\s]?\d{4}\b|\b\d{8}[-\s]?\d{4}\b""")
 
     /**
      * Extract personnummer from text
      * Returns the personnummer in normalized format (12 digits without dash)
+     * First tries strict Swedish format, then falls back to lenient matching
      */
     fun extractPersonnummer(text: String): String? {
-        val match = personnummerPattern.find(text) ?: return null
-
-        // Normalize the personnummer (remove dash/space, ensure 12 digits)
-        var personnummer = match.value.replace(Regex("[-\\s]"), "")
-
-        // If only 10 digits (YYMMDDXXXX), add century prefix
-        if (personnummer.length == 10) {
-            val yearPrefix = personnummer.substring(0, 2).toInt()
-            val century = if (yearPrefix >= 0 && yearPrefix <= 30) "20" else "19"
-            personnummer = century + personnummer
+        // First try strict Swedish personnummer format
+        val strictMatch = strictPattern.find(text)
+        if (strictMatch != null) {
+            return normalizePersonnummer(strictMatch.value)
         }
 
-        // Validate month and day
-        if (personnummer.length == 12 && isValidDatePart(personnummer)) {
-            return personnummer
+        // Fall back to lenient pattern (for test personnummer like 222222222222)
+        val lenientMatch = lenientPattern.find(text)
+        if (lenientMatch != null) {
+            return normalizePersonnummer(lenientMatch.value)
         }
 
         return null
     }
 
     /**
-     * Validate the date part of personnummer
+     * Normalize personnummer to 12 digits without dashes
+     */
+    private fun normalizePersonnummer(value: String): String {
+        var personnummer = value.replace(Regex("[-\\s]"), "")
+
+        // If only 10 digits (YYMMDDXXXX), add century prefix
+        if (personnummer.length == 10) {
+            val yearPrefix = personnummer.substring(0, 2).toIntOrNull() ?: 0
+            val century = if (yearPrefix in 0..30) "20" else "19"
+            personnummer = century + personnummer
+        }
+
+        return if (personnummer.length == 12) personnummer else value.replace(Regex("[-\\s]"), "")
+    }
+
+    /**
+     * Validate the date part of personnummer (strict Swedish format)
      */
     private fun isValidDatePart(personnummer: String): Boolean {
         if (personnummer.length != 12) return false
@@ -45,8 +60,9 @@ object PersonnummerExtractor {
 
     /**
      * Validate basic format of personnummer (12 digits)
+     * Lenient: accepts any 12-digit number
      */
     fun isValidFormat(personnummer: String): Boolean {
-        return personnummer.matches(Regex("""\d{12}""")) && isValidDatePart(personnummer)
+        return personnummer.matches(Regex("""\d{12}"""))
     }
 }
