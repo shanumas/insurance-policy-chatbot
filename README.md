@@ -202,10 +202,10 @@ Access console: http://localhost:8080/h2-console
 Calculated from OpenAI's token log probabilities:
 - `logprobs` returned for each token
 - Average probability = `exp(avg(logprobs))`
-- Displayed as percentage (0-100%)
+- Displayed as percentage (0.0-1.0)
 
 | Score | Meaning |
 |-------|---------|
-| 80%+ | High confidence (green) |
-| 50-79% | Medium confidence (yellow) |
-| <50% | Low confidence (red) |
+| 0.8+ | High confidence (green) |
+| 0.5 - 7.9 | Medium confidence (yellow) |
+| <0.5 | Low confidence (red) |
