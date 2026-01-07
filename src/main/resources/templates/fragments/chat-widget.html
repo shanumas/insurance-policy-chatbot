@@ -136,8 +136,8 @@
 
         .chat-status {
             font-size: 0.8125rem;
-            opacity: 0.9;
             margin: 0.25rem 0 0 0;
+            color: white;
         }
 
         .chat-close-btn {
@@ -220,6 +220,10 @@
             background: #1a1a1a;
             color: white;
             border-bottom-right-radius: 4px;
+        }
+
+        .chat-message-bubble.user p {
+            color: white;
         }
 
         .chat-message-bubble.assistant {
@@ -522,7 +526,7 @@
                     sourceItem.className = 'chat-source-item';
                     sourceItem.innerHTML = `
                         <strong>${index + 1}.</strong> ${source.preview}
-                        <span class="chat-source-similarity">${(source.similarity * 100).toFixed(0)}%</span>
+                        <span class="chat-source-similarity">${Number(source.similarity.toFixed(2))}</span>
                     `;
                     sourcesDiv.appendChild(sourceItem);
                 });
