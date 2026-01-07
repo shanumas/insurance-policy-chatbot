@@ -27,7 +27,9 @@ data class OpenAIChatRequest(
     val model: String,
     val messages: List<ChatMessage>,
     val temperature: Double = 0.7,
-    val max_tokens: Int? = null
+    val max_tokens: Int? = null,
+    val logprobs: Boolean = false,
+    val top_logprobs: Int? = null
 )
 
 data class ChatMessage(
@@ -47,5 +49,21 @@ data class OpenAIChatResponse(
 data class ChatChoice(
     val index: Int,
     val message: ChatMessage,
-    val finish_reason: String
+    val finish_reason: String,
+    val logprobs: ChoiceLogprobs? = null
+)
+
+data class ChoiceLogprobs(
+    val content: List<TokenLogprob>? = null
+)
+
+data class TokenLogprob(
+    val token: String,
+    val logprob: Double,
+    val bytes: List<Int>? = null
+)
+
+data class ChatResult(
+    val content: String,
+    val confidence: Double
 )

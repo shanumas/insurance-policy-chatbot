@@ -8,6 +8,7 @@ data class ChatRequest(
 data class ChatResponse(
     val message: String,
     val conversationId: String,
+    val confidence: Double = 0.0,
     val sources: List<SourceReference> = emptyList()
 )
 

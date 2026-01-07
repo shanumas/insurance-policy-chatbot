@@ -316,6 +316,44 @@
             30% { transform: translateY(-8px); }
         }
 
+        /* Confidence Score */
+        .chat-message-confidence {
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid #e8e8e8;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .confidence-label {
+            color: #666;
+        }
+
+        .confidence-value {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.7rem;
+        }
+
+        .confidence-value.high {
+            background: #e8f9f0;
+            color: #0f7d3a;
+        }
+
+        .confidence-value.medium {
+            background: #fff8e6;
+            color: #b37400;
+        }
+
+        .confidence-value.low {
+            background: #ffeaea;
+            color: #c41e3a;
+        }
+
         /* Message Sources */
         .chat-message-sources {
             margin-top: 0.75rem;
@@ -485,8 +523,8 @@
                 // Hide typing indicator
                 hideTypingIndicator();
 
-                // Add assistant message
-                addChatMessage(data.message, 'assistant', data.sources);
+                // Add assistant message with confidence
+                addChatMessage(data.message, 'assistant', data.sources, data.confidence);
 
             } catch (error) {
                 console.error('Error:', error);
@@ -499,7 +537,7 @@
             }
         }
 
-        function addChatMessage(text, sender, sources = []) {
+        function addChatMessage(text, sender, sources = [], confidence = null) {
             const messagesContainer = document.getElementById('chatWidgetMessages');
             const messageGroup = document.createElement('div');
             messageGroup.className = `chat-message-group ${sender}`;
@@ -514,6 +552,19 @@
             const textPara = document.createElement('p');
             textPara.textContent = text;
             bubble.appendChild(textPara);
+
+            // Add confidence score if available (for assistant messages)
+            if (sender === 'assistant' && confidence !== null && confidence > 0) {
+                const confidenceDiv = document.createElement('div');
+                confidenceDiv.className = 'chat-message-confidence';
+                const confidencePercent = Math.round(confidence * 100);
+                const confidenceClass = confidencePercent >= 80 ? 'high' : confidencePercent >= 50 ? 'medium' : 'low';
+                confidenceDiv.innerHTML = `
+                    <span class="confidence-label">Konfidens:</span>
+                    <span class="confidence-value ${confidenceClass}">${Number(confidence).toFixed(2)}</span>
+                `;
+                bubble.appendChild(confidenceDiv);
+            }
 
             // Add sources if available
             if (sources && sources.length > 0) {

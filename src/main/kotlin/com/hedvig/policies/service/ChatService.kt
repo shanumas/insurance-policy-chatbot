@@ -201,13 +201,13 @@ class ChatService(
         val messages = buildMessages(conversationHistory, sanitizedMessage, context, userInsurance)
 
         // Get response from OpenAI
-        val assistantMessage = try {
+        val chatResult = try {
             openAIService.chat(messages, model = "gpt-4o-mini", maxTokens = 500)
         } catch (e: Exception) {
             logger.error("Error getting chat response: ${e.message}", e)
 
             // Return a helpful error message based on the exception
-            when {
+            val errorMessage = when {
                 e.message?.contains("401") == true || e.message?.contains("authentication") == true ->
                     "Jag kan inte ansluta till AI-tjänsten (ogiltig API-nyckel). Vänligen kontakta supporten."
                 e.message?.contains("429") == true || e.message?.contains("rate limit") == true ->
@@ -217,7 +217,11 @@ class ChatService(
                 else ->
                     "Jag kan tyvärr inte svara på din fråga just nu. Vänligen försök igen senare eller kontakta supporten."
             }
+            com.hedvig.policies.dto.ChatResult(content = errorMessage, confidence = 0.0)
         }
+
+        val assistantMessage = chatResult.content
+        val confidence = chatResult.confidence
 
         // Update conversation history
         conversationHistory.add(ChatMessage(role = "user", content = sanitizedMessage))
@@ -239,11 +243,12 @@ class ChatService(
             )
         }
 
-        logger.info("Chat response generated successfully")
+        logger.info("Chat response generated successfully with confidence: ${"%.1f".format(confidence * 100)}%")
 
         return ChatResponse(
             message = assistantMessage,
             conversationId = conversationId,
+            confidence = confidence,
             sources = sources
         )
     }
@@ -446,12 +451,12 @@ class ChatService(
                 ChatMessage(role = "user", content = prompt)
             )
 
-            val response = openAIService.chat(clarificationMessages, model = "gpt-4o-mini", maxTokens = 200)
+            val result = openAIService.chat(clarificationMessages, model = "gpt-4o-mini", maxTokens = 200)
 
-            return if (response.contains("INGEN_CLARIFICATION", ignoreCase = true)) {
+            return if (result.content.contains("INGEN_CLARIFICATION", ignoreCase = true)) {
                 null
             } else {
-                response.trim()
+                result.content.trim()
             }
 
         } catch (e: Exception) {

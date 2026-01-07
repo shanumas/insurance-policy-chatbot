@@ -1,7 +1,13 @@
 package com.hedvig.policies.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.hedvig.policies.dto.*
+import com.hedvig.policies.dto.ChatMessage
+import com.hedvig.policies.dto.ChatResult
+import com.hedvig.policies.dto.ChoiceLogprobs
+import com.hedvig.policies.dto.OpenAIChatRequest
+import com.hedvig.policies.dto.OpenAIChatResponse
+import com.hedvig.policies.dto.OpenAIEmbeddingRequest
+import com.hedvig.policies.dto.OpenAIEmbeddingResponse
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
@@ -65,7 +71,7 @@ class OpenAIService(
         return texts.map { generateEmbedding(it) }
     }
 
-    fun chat(messages: List<ChatMessage>, model: String = "gpt-4o-mini", maxTokens: Int? = null): String {
+    fun chat(messages: List<ChatMessage>, model: String = "gpt-4o-mini", maxTokens: Int? = null): ChatResult {
         if (apiKey.isBlank()) {
             throw IllegalStateException("OpenAI API key not configured")
         }
@@ -75,7 +81,9 @@ class OpenAIService(
                 model = model,
                 messages = messages,
                 temperature = 0.7,
-                max_tokens = maxTokens
+                max_tokens = maxTokens,
+                logprobs = true,
+                top_logprobs = 1
             )
 
             logger.debug("Sending chat request to OpenAI with model: $model")
@@ -98,12 +106,40 @@ class OpenAIService(
                 throw RuntimeException("Empty response from OpenAI")
             }
 
-            logger.debug("Successfully received response from OpenAI")
-            return response.choices[0].message.content
+            val choice = response.choices[0]
+            val confidence = calculateConfidence(choice.logprobs)
+
+            logger.debug("Successfully received response from OpenAI with confidence: ${"%.2f".format(confidence * 100)}%")
+            return ChatResult(
+                content = choice.message.content,
+                confidence = confidence
+            )
         } catch (e: Exception) {
             logger.error("Error in chat completion: ${e.message}", e)
             throw RuntimeException("Failed to get chat completion: ${e.message}", e)
         }
+    }
+
+    /**
+     * Calculate confidence score from logprobs.
+     * Converts average log probability to a 0-1 confidence score.
+     */
+    private fun calculateConfidence(logprobs: ChoiceLogprobs?): Double {
+        val tokenLogprobs = logprobs?.content
+        if (tokenLogprobs.isNullOrEmpty()) {
+            return 0.0
+        }
+
+        // Calculate average probability from log probabilities
+        // logprob is in natural log, so exp(logprob) gives the probability
+        val avgLogprob = tokenLogprobs.map { it.logprob }.average()
+
+        // Convert to probability (0 to 1 range)
+        // exp(logprob) gives the actual probability
+        val avgProbability = Math.exp(avgLogprob)
+
+        // Clamp to 0-1 range and round to 2 decimal places
+        return avgProbability.coerceIn(0.0, 1.0)
     }
 
     /**
