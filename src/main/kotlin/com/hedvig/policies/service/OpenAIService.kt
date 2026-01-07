@@ -123,6 +123,14 @@ class OpenAIService(
                 Du är en expert på svenska hemförsäkringar.
                 Din uppgift: analysera användarens fråga och identifiera vilka topics från innehållsförteckningen som är relevanta.
 
+                SCENARIO-MAPPNING (viktigt!):
+                - Tappade/råkade/av misstag/gick sönder/skadade själv → "Drulle" (allrisk/olyckshändelser)
+                - Stulet/borta/inbrott/rånad → Stöld-relaterade topics
+                - Brand/eld/rök/explosion → Brand-relaterade topics
+                - Vatten/läcka/översvämning → Vattenskada-relaterade topics
+                - Storm/blåst/hagel/naturkatastrof → Naturskada-relaterade topics
+                - Resa/utomlands/semester → Reseskydd-relaterade topics
+
                 Regler:
                 - Returnera ENDAST topic-namn från listan (exakt som de är skrivna)
                 - Inkludera 2-5 mest relevanta topics
