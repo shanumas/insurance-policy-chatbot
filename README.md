@@ -61,6 +61,9 @@ In another terminal, recompile on changes:
 ### 3. Eldsvåda question
 ![Eldsvåda Bas Test](screenshots/eldsvada-bas-test.png)
 
+### 4. Damaged Phone question
+![Damaged phone Bas Test](screenshots/phone-damage.png)
+
 # Project Structure
 
 ```
