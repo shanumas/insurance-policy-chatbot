@@ -50,6 +50,17 @@ In another terminal, recompile on changes:
 | `/api/policies` | GET | List all policies |
 | `/h2-console` | GET | Database console |
 
+## Screenshots
+
+### 1. Ask ID to fetch user specific info
+![Ask ID](screenshots/ask-id.png)
+
+### 2. Fetch details from database
+![Fetch from database](screenshots/fetch-from-database.png)
+
+### 3. Eldsvåda question
+![Eldsvåda Bas Test](screenshots/eldsvada-bas-test.png)
+
 # Project Structure
 
 ```
